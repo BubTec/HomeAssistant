@@ -124,31 +124,26 @@ condition:
 action:
   - alias: "Check frost forecast and send warning"
     sequence:
-      # Get frost forecast from API
-      - alias: "Get frost forecast level"
-        service: rest.get
+      # Get frost forecast from API and send notification
+      - alias: "Get frost forecast and send warning"
+        service: http.get
         data:
           url: >-
             https://api.eiswarnung.de?key={{ input.frost_api_key }}&lat={{ lat }}&lng={{ lng }}
           timeout: 10
+        response_variable: api_response
       
       # Send notification if frost detected
       - alias: "Send frost warning notification"
         if:
           - condition: template
             value_template: >
-              {% set response = states('sensor.rest_eiswarnung') %}
-              {% if response not in ['unknown', 'unavailable'] %}
-                {% set data = response | from_json %}
-                {% set forecast_id = data.result.forecastId %}
-                {{ forecast_id in [1, 2] }}
-              {% else %}
-                false
-              {% endif %}
+              {% set data = api_response | from_json %}
+              {% set forecast_id = data.result.forecastId %}
+              {{ forecast_id in [1, 2] }}
         then:
           - variables:
-              response: "{{ states('sensor.rest_eiswarnung') }}"
-              data: "{{ response | from_json }}"
+              data: "{{ api_response | from_json }}"
               forecast_id: "{{ data.result.forecastId }}"
               warning_message: >-
                 {% if forecast_id == 1 %}
@@ -174,14 +169,9 @@ action:
         if:
           - condition: template
             value_template: >
-              {% set response = states('sensor.rest_eiswarnung') %}
-              {% if response not in ['unknown', 'unavailable'] %}
-                {% set data = response | from_json %}
-                {% set forecast_id = data.result.forecastId %}
-                {{ forecast_id in [1, 2] }}
-              {% else %}
-                false
-              {% endif %}
+              {% set data = api_response | from_json %}
+              {% set forecast_id = data.result.forecastId %}
+              {{ forecast_id in [1, 2] }}
         then:
           - service: persistent_notification.create
             data:
