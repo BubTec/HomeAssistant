@@ -18,43 +18,49 @@ blueprint:
           domain: binary_sensor
     
     usage_counter:
-      name: "Usage Counter Helper (counter.catshit_lastseen)"
+      name: "Usage Counter Helper"
       description: "Counter helper to track current usage since last cleaning"
+      default: "counter.catshit_lastseen"
       selector:
         entity:
           domain: counter
     
     total_counter:
-      name: "Total Usage Counter Helper (counter.catshit_totalcounter)"
+      name: "Total Usage Counter Helper"
       description: "Counter helper to track total usage"
+      default: "counter.catshit_totalcounter"
       selector:
         entity:
           domain: counter
     
     clean_counter:
-      name: "Cleaning Counter Helper (counter.catshit_counter)"  
+      name: "Cleaning Counter Helper"  
       description: "Counter helper to track number of cleanings"
+      default: "counter.catshit_counter"
       selector:
         entity:
           domain: counter
     
     needs_cleaning_helper:
-      name: "Needs Cleaning Boolean Helper (input_boolean.catshit_cleaning)"
+      name: "Needs Cleaning Boolean Helper"
       description: "Input boolean to track if litter box needs cleaning"
+      default: "input_boolean.catshit_cleaning"
       selector:
         entity:
           domain: input_boolean
     
     cleaning_tool_alert:
-      name: "Cleaning Tool Alert Boolean Helper (input_boolean.catshit_toolcheck)"
+      name: "Cleaning Tool Alert Boolean Helper"
       description: "Input boolean to track if cleaning tool is left open"
+      default: "input_boolean.catshit_toolcheck"
       selector:
         entity:
           domain: input_boolean
     
     cat_presence_helper:
-      name: "Cat Presence Detection Helper (input_boolean.catshit_tracker)"
+      name: "Cat Presence Detection Helper"
       description: "Input boolean to track if cat presence is detected"
+      default: "input_boolean.catshit_tracker"
       selector:
         entity:
           domain: input_boolean
