@@ -40,7 +40,7 @@ blueprint:
         number:
           min: -90
           max: 90
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     custom_longitude:
@@ -50,7 +50,7 @@ blueprint:
         number:
           min: -180
           max: 180
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     home_latitude:
@@ -60,7 +60,7 @@ blueprint:
         number:
           min: -90
           max: 90
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     home_longitude:
@@ -70,7 +70,7 @@ blueprint:
         number:
           min: -180
           max: 180
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     work_latitude:
@@ -80,7 +80,7 @@ blueprint:
         number:
           min: -90
           max: 90
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     work_longitude:
@@ -90,7 +90,7 @@ blueprint:
         number:
           min: -180
           max: 180
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     car1_latitude:
@@ -100,7 +100,7 @@ blueprint:
         number:
           min: -90
           max: 90
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     car1_longitude:
@@ -110,7 +110,7 @@ blueprint:
         number:
           min: -180
           max: 180
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     car2_latitude:
@@ -120,7 +120,7 @@ blueprint:
         number:
           min: -90
           max: 90
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     car2_longitude:
@@ -130,7 +130,7 @@ blueprint:
         number:
           min: -180
           max: 180
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     garage_latitude:
@@ -140,7 +140,7 @@ blueprint:
         number:
           min: -90
           max: 90
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     garage_longitude:
@@ -150,7 +150,7 @@ blueprint:
         number:
           min: -180
           max: 180
-          step: 0.000001
+          step: "0.000001"
           unit_of_measurement: degrees
     
     frost_forecast_sensor:
@@ -228,16 +228,16 @@ blueprint:
         select:
           options:
             - label: "Monday to Friday"
-              value: [1, 2, 3, 4, 5]
+              value: "weekdays"
             - label: "Every Day"
-              value: [1, 2, 3, 4, 5, 6, 7]
+              value: "everyday"
             - label: "Weekends Only"
-              value: [6, 7]
+              value: "weekends"
             - label: "Monday Only"
-              value: [1]
+              value: "monday"
             - label: "Custom"
-              value: []
-          multiple: true
+              value: "custom"
+          multiple: false
     
     custom_warning_days:
       name: Custom Warning Days
@@ -247,19 +247,19 @@ blueprint:
         select:
           options:
             - label: "Monday"
-              value: 1
+              value: "1"
             - label: "Tuesday"
-              value: 2
+              value: "2"
             - label: "Wednesday"
-              value: 3
+              value: "3"
             - label: "Thursday"
-              value: 4
+              value: "4"
             - label: "Friday"
-              value: 5
+              value: "5"
             - label: "Saturday"
-              value: 6
+              value: "6"
             - label: "Sunday"
-              value: 7
+              value: "7"
           multiple: true
     
     update_interval_hours:
@@ -351,10 +351,18 @@ variables:
   dashboard_view: !input dashboard_view
   warning_time: !input warning_time
   warning_days: >-
-    {% if input.warning_days | length > 0 %}
-      {{ input.warning_days }}
+    {% if input.warning_days == "weekdays" %}
+      [1, 2, 3, 4, 5]
+    {% elif input.warning_days == "everyday" %}
+      [1, 2, 3, 4, 5, 6, 7]
+    {% elif input.warning_days == "weekends" %}
+      [6, 7]
+    {% elif input.warning_days == "monday" %}
+      [1]
+    {% elif input.warning_days == "custom" %}
+      {{ input.custom_warning_days | map('int') | list }}
     {% else %}
-      {{ input.custom_warning_days }}
+      [1, 2, 3, 4, 5]
     {% endif %}
   enable_fallback: !input enable_fallback_sensor
   fallback_threshold: !input fallback_temperature_threshold
