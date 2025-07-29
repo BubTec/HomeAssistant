@@ -128,8 +128,8 @@ condition:
 action:
   - alias: "Check frost forecast and send warning"
     sequence:
-      # Get frost forecast from API and send notification
-      - alias: "Get frost forecast and send warning"
+      # Get frost forecast from API
+      - alias: "Get frost forecast from API"
         service: http.get
         data:
           url: >-
