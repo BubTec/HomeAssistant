@@ -1,6 +1,6 @@
 # 🐾 Cat Litter Box Counter and Monitor
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/christoph-buebeck/HomeAssistant/main/CatShitCounter/CatShitCounter.yaml)
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/CatShitCounter/CatShitCounter.yaml)
 
 A comprehensive Home Assistant blueprint for monitoring cat litter box usage, providing cleaning reminders, and tracking cleaning activities.
 

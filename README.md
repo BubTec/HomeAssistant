@@ -7,7 +7,7 @@ Home Assistant Blueprints converted from original ioBroker scripts. Each bluepri
 ### 🐾 Cat Litter Box Counter and Monitor
 Comprehensive cat litter box monitoring with usage tracking, cleaning reminders, and tool monitoring.
 
-[📖 Documentation](./CatShitCounter/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/christoph-buebeck/HomeAssistant/main/CatShitCounter/CatShitCounter.yaml)
+[📖 Documentation](./CatShitCounter/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/CatShitCounter/CatShitCounter.yaml)
 
 ---
 
