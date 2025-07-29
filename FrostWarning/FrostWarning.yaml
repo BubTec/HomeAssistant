@@ -1,161 +1,544 @@
 blueprint:
-  name: German Ice Warning System (eiswarnung.de)
+  name: Frost Warning with Flexible Configuration
   description: >
-    Advanced ice warning system using the German eiswarnung.de API for accurate frost predictions.
-    Provides professional ice forecasts with optional temperature sensor integration for additional context.
-    Perfect for German locations with precise windscreen scraping predictions.
+    Blueprint for automation that sends frost warnings with flexible configuration.
+    Checks frost forecast via API and sends notifications with customizable messages,
+    targets, and error handling. Supports multiple notification methods and fallback options.
   domain: automation
   input:
-    eiswarnung_sensor:
-      name: Eiswarnung Forecast Sensor
-      description: RESTful sensor that provides eiswarnung.de forecast ID (see README for setup)
+    frost_api_key:
+      name: Frost API Key
+      description: API key for eiswarnung.de service
       selector:
-        entity:
-          domain: sensor
-      default: ""
+        text:
+          type: text
     
-    temperature_sensor:
-      name: Temperature Sensor (Optional)
-      description: Additional temperature sensor for local readings (e.g., car, garage)
+    location_selection:
+      name: Location Selection
+      description: Select the location for frost forecast
+      default: "custom"
+      selector:
+        select:
+          options:
+            - label: "Custom Coordinates"
+              value: "custom"
+            - label: "Home Location"
+              value: "home"
+            - label: "Work Location"
+              value: "work"
+            - label: "Car Location 1"
+              value: "car1"
+            - label: "Car Location 2"
+              value: "car2"
+            - label: "Garage Location"
+              value: "garage"
+    
+    custom_latitude:
+      name: Custom Latitude
+      description: Latitude coordinate for frost forecast (only used if Custom Coordinates selected)
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    custom_longitude:
+      name: Custom Longitude
+      description: Longitude coordinate for frost forecast (only used if Custom Coordinates selected)
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    home_latitude:
+      name: Home Latitude
+      description: Home location latitude
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    home_longitude:
+      name: Home Longitude
+      description: Home location longitude
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    work_latitude:
+      name: Work Latitude
+      description: Work location latitude
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    work_longitude:
+      name: Work Longitude
+      description: Work location longitude
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    car1_latitude:
+      name: Car 1 Latitude
+      description: Car 1 location latitude
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    car1_longitude:
+      name: Car 1 Longitude
+      description: Car 1 location longitude
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    car2_latitude:
+      name: Car 2 Latitude
+      description: Car 2 location latitude
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    car2_longitude:
+      name: Car 2 Longitude
+      description: Car 2 location longitude
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    garage_latitude:
+      name: Garage Latitude
+      description: Garage location latitude
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    garage_longitude:
+      name: Garage Longitude
+      description: Garage location longitude
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+          unit_of_measurement: degrees
+    
+    car_temperature_sensor:
+      name: Car Temperature Sensor
+      description: Temperature sensor for car outside temperature
       selector:
         entity:
           domain: sensor
           device_class: temperature
-      default: ""
+          multiple: false
     
-    notification_service:
-      name: Notification Service
-      description: Service to send ice warnings
+    notification_targets:
+      name: Notification Targets
+      description: >
+        List of notification services to send frost warnings to
+        (e.g., notify.mobile_app_iphone, notify.alexa_media)
+      default: []
+      selector:
+        target: {}
+    
+    notification_title:
+      name: Notification Title
+      description: Title for the frost warning notification
+      default: "Frost Warning!"
       selector:
         text:
-      default: "notify.persistent_notification"
+          type: text
+    
+    dashboard_view:
+      name: Dashboard View
+      description: Dashboard path to open when notification is clicked
+      default: "/dashboard-home/car"
+      selector:
+        text:
+          type: text
+    
+    notification_sound:
+      name: Notification Sound (iOS)
+      description: Sound file for iOS notifications
+      default: "US-EN-Morgan-Freeman-Warning.wav"
+      selector:
+        text:
+          type: text
+    
+    notification_channel:
+      name: Notification Channel (Android)
+      description: >
+        Android notification channel name for frost warnings
+      default: "frost_alerts"
+      selector:
+        text:
+          type: text
     
     warning_time:
-      name: Morning Warning Time
-      description: Time to send daily ice warnings
+      name: Warning Time
+      description: Time to send frost warning (24-hour format)
+      default: "07:30"
       selector:
-        time:
-      default: "07:30:00"
+        time: {}
     
-    weekend_warnings:
-      name: Include Weekend Warnings
-      description: Send warnings on weekends too
+    warning_days:
+      name: Warning Days
+      description: Days of the week to send warnings (1=Monday, 7=Sunday)
+      default: [1, 2, 3, 4, 5]
       selector:
-        boolean:
-      default: false
+        select:
+          options:
+            - label: "Monday to Friday"
+              value: [1, 2, 3, 4, 5]
+            - label: "Every Day"
+              value: [1, 2, 3, 4, 5, 6, 7]
+            - label: "Weekends Only"
+              value: [6, 7]
+            - label: "Monday Only"
+              value: [1]
+            - label: "Custom"
+              value: []
+          multiple: true
     
-    high_risk_message:
-      name: High Risk Message (Level 1)
-      description: Message when ice scraping is definitely needed
+    custom_warning_days:
+      name: Custom Warning Days
+      description: Custom days selection (1=Monday, 7=Sunday)
+      default: []
       selector:
-        text:
-          multiline: true
-      default: "❄️ Eiswarnung Stufe 1! Du musst heute die Scheiben kratzen, bevor du mit dem Auto fährst!{temp_info}"
+        select:
+          options:
+            - label: "Monday"
+              value: 1
+            - label: "Tuesday"
+              value: 2
+            - label: "Wednesday"
+              value: 3
+            - label: "Thursday"
+              value: 4
+            - label: "Friday"
+              value: 5
+            - label: "Saturday"
+              value: 6
+            - label: "Sunday"
+              value: 7
+          multiple: true
     
-    medium_risk_message:
-      name: Medium Risk Message (Level 2)
-      description: Message when ice scraping might be needed
+    update_interval_hours:
+      name: API Update Interval
+      description: How often to update frost forecast from API (in hours)
+      default: 2
       selector:
-        text:
-          multiline: true
-      default: "🌡️ Eiswarnung Stufe 2! Vielleicht musst du heute die Scheiben kratzen, bevor du mit dem Auto fährst!{temp_info}"
+        number:
+          min: 1
+          max: 24
+          unit_of_measurement: hours
+          mode: slider
+          step: 1
     
-    location_name:
-      name: Location Name (Optional)
-      description: Name for personalized messages (e.g., "at your car", "in Munich")
+    enable_fallback_sensor:
+      name: Enable Fallback Sensor
+      description: Use local temperature sensor as fallback if API fails
+      default: true
       selector:
-        text:
-      default: ""
+        boolean: {}
+    
+    fallback_temperature_threshold:
+      name: Fallback Temperature Threshold
+      description: Temperature threshold for fallback frost warning (°C)
+      default: 3
+      selector:
+        number:
+          min: -10
+          max: 10
+          unit_of_measurement: °C
+          mode: slider
+          step: 0.5
+    
+    retry_attempts:
+      name: API Retry Attempts
+      description: Number of retry attempts for API calls
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 5
+          mode: slider
+          step: 1
+    
+    retry_delay_seconds:
+      name: Retry Delay
+      description: Delay between retry attempts (in seconds)
+      default: 30
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: seconds
+          mode: slider
+          step: 10
 
-mode: single
+  source_url: https://github.com/your-repo/HomeAssistant/blob/main/FrostWarning/FrostWarning.yaml
 
 variables:
-  eiswarnung_sensor: !input eiswarnung_sensor
-  temperature_sensor: !input temperature_sensor
-  notification_service: !input notification_service
-  weekend_warnings: !input weekend_warnings
-  high_risk_message: !input high_risk_message
-  medium_risk_message: !input medium_risk_message
-  location_name: !input location_name
+  api_key: !input frost_api_key
+  location_selection: !input location_selection
+  lat: >-
+    {% if location_selection == "custom" %}
+      {{ input.custom_latitude }}
+    {% elif location_selection == "home" %}
+      {{ input.home_latitude }}
+    {% elif location_selection == "work" %}
+      {{ input.work_latitude }}
+    {% elif location_selection == "car1" %}
+      {{ input.car1_latitude }}
+    {% elif location_selection == "car2" %}
+      {{ input.car2_latitude }}
+    {% elif location_selection == "garage" %}
+      {{ input.garage_latitude }}
+    {% else %}
+      {{ input.custom_latitude }}
+    {% endif %}
+  lng: >-
+    {% if location_selection == "custom" %}
+      {{ input.custom_longitude }}
+    {% elif location_selection == "home" %}
+      {{ input.home_longitude }}
+    {% elif location_selection == "work" %}
+      {{ input.work_longitude }}
+    {% elif location_selection == "car1" %}
+      {{ input.car1_longitude }}
+    {% elif location_selection == "car2" %}
+      {{ input.car2_longitude }}
+    {% elif location_selection == "garage" %}
+      {{ input.garage_longitude }}
+    {% else %}
+      {{ input.custom_longitude }}
+    {% endif %}
+  location_name: >-
+    {% if location_selection == "custom" %}
+      "Custom Location"
+    {% elif location_selection == "home" %}
+      "Home"
+    {% elif location_selection == "work" %}
+      "Work"
+    {% elif location_selection == "car1" %}
+      "Car 1"
+    {% elif location_selection == "car2" %}
+      "Car 2"
+    {% elif location_selection == "garage" %}
+      "Garage"
+    {% else %}
+      "Custom Location"
+    {% endif %}
+  car_temp_sensor: !input car_temperature_sensor
+  notification_targets: !input notification_targets
+  dashboard_view: !input dashboard_view
+  warning_time: !input warning_time
+  warning_days: >-
+    {% if input.warning_days | length > 0 %}
+      {{ input.warning_days }}
+    {% else %}
+      {{ input.custom_warning_days }}
+    {% endif %}
+  update_interval: !input update_interval_hours
+  enable_fallback: !input enable_fallback_sensor
+  fallback_threshold: !input fallback_temperature_threshold
+  retry_attempts: !input retry_attempts
+  retry_delay: !input retry_delay_seconds
 
 trigger:
+  # Daily warning at specified time
   - platform: time
     at: !input warning_time
-    id: "morning_warning"
-  
-  - platform: state
-    entity_id: !input eiswarnung_sensor
-    id: "sensor_update"
+  # Regular API updates
+  - platform: time_pattern
+    hours: "/{{ update_interval }}"
 
 condition:
-  # Skip if no eiswarnung sensor configured
-  - condition: template
-    value_template: "{{ eiswarnung_sensor != '' }}"
-  
-  # Weekend check
+  # Check if today is a warning day
   - condition: template
     value_template: >
-      {% if weekend_warnings %}
-        true
-      {% else %}
-        {{ now().weekday() < 5 }}
-      {% endif %}
+      {% set today = now().isoweekday() %}
+      {% set warning_days = warning_days | list %}
+      {{ today in warning_days }}
 
 action:
-  - variables:
-      location_text: >
-        {% if location_name != "" %}
-          {{ " " + location_name }}
-        {% else %}
-          ""
-        {% endif %}
+  - alias: "Check frost forecast and send warning"
+    sequence:
+      # Try API first
+      - alias: "Try to get frost forecast from API"
+        variables:
+          api_url: >-
+            https://api.eiswarnung.de?key={{ api_key }}&lat={{ lat }}&lng={{ lng }}
+          frost_level: null
+          api_success: false
+        
+        # Retry loop for API calls
+        - repeat:
+            count: "{{ retry_attempts }}"
+            sequence:
+              - alias: "API call attempt {{ repeat.index }}"
+                service: rest.get
+                data:
+                  url: "{{ api_url }}"
+                  timeout: 10
+                continue_on_error: true
+                
+              - alias: "Process API response"
+                if:
+                  - condition: template
+                    value_template: "{{ states('rest.get') != 'unavailable' }}"
+                then:
+                  - variables:
+                      response_data: "{{ states.rest.get.attributes.body | from_json }}"
+                      frost_level: "{{ response_data.result.forecastId if response_data.result else null }}"
+                      api_success: "{{ frost_level is not none }}"
+                  
+                  - if:
+                      - condition: template
+                        value_template: "{{ api_success }}"
+                    then:
+                      - break
+                
+              - if:
+                  - condition: template
+                    value_template: "{{ not api_success and repeat.index < retry_attempts }}"
+                then:
+                  - delay:
+                      seconds: "{{ retry_delay }}"
+                  - service: persistent_notification.create
+                    data:
+                      title: "Frost Warning API Error"
+                      message: "API call attempt {{ repeat.index }} failed, retrying in {{ retry_delay }} seconds..."
       
-      forecast_id: >
-        {% if eiswarnung_sensor != "" and states(eiswarnung_sensor) not in ['unknown', 'unavailable'] %}
-          {{ states(eiswarnung_sensor) | int }}
-        {% else %}
-          0
-        {% endif %}
-      
-      current_temp: >
-        {% if temperature_sensor != "" and states(temperature_sensor) not in ['unknown', 'unavailable'] %}
-          {{ states(temperature_sensor) | float }}
-        {% else %}
-          none
-        {% endif %}
-      
-      temp_info: >
-        {% if current_temp is not none %}
-          {{ " Aktuelle Temperatur" + location_text + ": " + current_temp | round(1) | string + "°C" }}
-        {% else %}
-          ""
-        {% endif %}
-
-  - choose:
-      # High ice risk (Level 1)
-      - conditions:
+      # Fallback to local sensor if API failed
+      - alias: "Check fallback sensor if API failed"
+        if:
           - condition: template
-            value_template: "{{ forecast_id == 1 }}"
-        sequence:
-          - service: "{{ notification_service }}"
+            value_template: "{{ not api_success and enable_fallback and car_temp_sensor is not none }}"
+        then:
+          - variables:
+              current_temp: "{{ states(car_temp_sensor) | float(0) }}"
+              frost_level: >-
+                {% if current_temp <= fallback_threshold %}
+                  1
+                {% else %}
+                  0
+                {% endif %}
+              api_success: true
+      
+      # Send notification if frost detected
+      - alias: "Send frost warning notification"
+        if:
+          - condition: template
+            value_template: "{{ api_success and frost_level in [1, 2] }}"
+        then:
+          - variables:
+              car_temp: "{{ states(car_temp_sensor) | float(0) if car_temp_sensor else 'unknown' }}"
+              warning_message: >-
+                {% if frost_level == 1 %}
+                  You need to scrape your windshield today before driving! 
+                  Location: {{ location_name }}
+                  Car temperature: {{ car_temp }}°C
+                {% elif frost_level == 2 %}
+                  You might need to scrape your windshield today before driving! 
+                  Location: {{ location_name }}
+                  Car temperature: {{ car_temp }}°C
+                {% endif %}
+              timestamp: "{{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}"
+          
+          - repeat:
+              for_each: "{{ notification_targets }}"
+              sequence:
+                - service: notify.send_message
+                  target: "{{ repeat.item }}"
+                  data:
+                    title: !input notification_title
+                    message: "{{ warning_message }}"
+                    data:
+                      push:
+                        sound: !input notification_sound
+                      channel: !input notification_channel
+                      ttl: 0
+                      priority: high
+                      clickAction: "{{ dashboard_view }}"
+      
+      # Log warning sent
+      - alias: "Log frost warning sent"
+        if:
+          - condition: template
+            value_template: "{{ api_success and frost_level in [1, 2] }}"
+        then:
+          - service: persistent_notification.create
             data:
-              title: "❄️ Eiswarnung Stufe 1"
+              title: "Frost Warning Sent"
               message: >
-                {{ high_risk_message.replace('{temp_info}', temp_info) }}
-                {% if trigger.id == "sensor_update" %}
-                (Aktualisiert um {{ now().strftime('%H:%M') }})
+                Frost warning sent at {{ timestamp }}.
+                Location: {{ location_name }}
+                Frost level: {{ frost_level }}, 
+                Car temperature: {{ car_temp }}°C
+      
+      # Log if no frost detected
+      - alias: "Log no frost detected"
+        if:
+          - condition: template
+            value_template: "{{ api_success and frost_level == 0 }}"
+        then:
+          - service: persistent_notification.create
+            data:
+              title: "No Frost Warning"
+              message: >
+                No frost detected at {{ timestamp }}.
+                Location: {{ location_name }}
+                Frost level: {{ frost_level }}, 
+                Car temperature: {{ car_temp }}°C
+      
+      # Log API failure
+      - alias: "Log API failure"
+        if:
+          - condition: template
+            value_template: "{{ not api_success }}"
+        then:
+          - service: persistent_notification.create
+            data:
+              title: "Frost Warning API Failure"
+              message: >
+                Failed to get frost forecast after {{ retry_attempts }} attempts.
+                Location: {{ location_name }}
+                {% if enable_fallback and car_temp_sensor %}
+                Fallback sensor enabled but temperature threshold not met.
+                {% else %}
+                No fallback sensor configured.
                 {% endif %}
 
-      # Medium ice risk (Level 2)  
-      - conditions:
-          - condition: template
-            value_template: "{{ forecast_id == 2 }}"
-        sequence:
-          - service: "{{ notification_service }}"
-            data:
-              title: "🌡️ Eiswarnung Stufe 2"
-              message: >
-                {{ medium_risk_message.replace('{temp_info}', temp_info) }}
-                {% if trigger.id == "sensor_update" %}
-                (Aktualisiert um {{ now().strftime('%H:%M') }})
-                {% endif %} 
+mode: single 

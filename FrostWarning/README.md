@@ -1,241 +1,219 @@
-# German Ice Warning System (eiswarnung.de)
+# Frost Warning Blueprint
 
-This Home Assistant blueprint provides professional ice warnings using the German eiswarnung.de API for accurate frost predictions. Perfect for German locations with precise windscreen scraping forecasts based on professional meteorological data.
+A modern Home Assistant blueprint for frost warnings with flexible configuration and robust error handling. This blueprint replaces the old ioBroker script with a more reliable and feature-rich solution.
 
 ## Features
 
-- ❄️ **Professional Ice Forecasts**: Uses eiswarnung.de API for accurate German weather predictions
-- 🎯 **Two Warning Levels**: Level 1 (ice scraping definitely needed), Level 2 (possibly needed)
-- 🚗 **Car-Focused**: Specifically designed for windscreen ice warnings
-- 🌡️ **Temperature Integration**: Optional local temperature sensor for additional context
-- ⏰ **Smart Scheduling**: Morning warnings plus real-time updates when forecasts change
-- 📱 **German Messages**: Native German notifications (customizable)
-- 📅 **Weekend Control**: Choose whether to include weekend warnings
+### 🔧 **Flexible Configuration**
+- **API Key Management**: Secure API key input (no hardcoded values)
+- **Location Selection**: Dropdown menu to select from predefined locations (Home, Work, Car 1, Car 2, Garage, Custom)
+- **Multiple Notification Targets**: Support for various notification services
+- **Customizable Messages**: Personalized notification titles and content
+- **Flexible Scheduling**: Configurable warning times and days of the week
 
-## Required Setup
+### 🛡️ **Robust Error Handling**
+- **Retry Logic**: Automatic retry attempts for failed API calls
+- **Fallback Sensors**: Local temperature sensor backup when API fails
+- **Comprehensive Logging**: Detailed logs for debugging and monitoring
+- **Graceful Degradation**: System continues working even with API issues
 
-### 1. Get eiswarnung.de API Key
+### 📱 **Modern Notifications**
+- **Rich Notifications**: Support for sounds, channels, and click actions
+- **Multiple Platforms**: iOS, Android, and other notification services
+- **Dashboard Integration**: Click notifications to open relevant dashboards
+- **Priority Handling**: High-priority alerts for important warnings
 
-1. Visit [eiswarnung.de](https://www.eiswarnung.de/) 
-2. Register for an API account
-3. Note your API key, latitude, and longitude
+## Setup
 
-### 2. Configure RESTful Sensor
+### 1. Prerequisites
+- Home Assistant instance
+- API key from [eiswarnung.de](https://eiswarnung.de)
+- Temperature sensor (optional, for fallback)
 
-Add this to your `configuration.yaml`:
+### 2. Installation
+1. Copy the `FrostWarning.yaml` file to your Home Assistant configuration
+2. Import the blueprint in Home Assistant
+3. Create a new automation using this blueprint
 
+### 3. Configuration
+
+#### Required Settings
+- **Frost API Key**: Your eiswarnung.de API key
+- **Location Selection**: Choose from dropdown (Home, Work, Car 1, Car 2, Garage, Custom)
+- **Location Coordinates**: Configure coordinates for each location type
+- **Car Temperature Sensor**: Temperature sensor for your car (optional but recommended)
+- **Notification Targets**: Where to send warnings
+
+#### Location Configuration
+The blueprint supports multiple predefined locations:
+
+| Location | Description | Use Case |
+|----------|-------------|----------|
+| **Home** | Your home address | General frost warnings |
+| **Work** | Your workplace | Commute-related warnings |
+| **Car 1** | Primary vehicle location | Main car frost warnings |
+| **Car 2** | Secondary vehicle location | Second car or family car |
+| **Garage** | Garage or carport location | Indoor/covered parking |
+| **Custom** | Custom coordinates | Any other location |
+
+#### Optional Settings
+- **Warning Time**: When to send daily warnings (default: 07:30)
+- **Warning Days**: Which days to send warnings (default: Monday-Friday)
+- **Update Interval**: How often to check for frost (default: 2 hours)
+- **Fallback Settings**: Local sensor configuration for API failures
+
+## How It Works
+
+### API Integration
+The blueprint uses the German eiswarnung.de API to get accurate frost forecasts:
+- **Level 1**: High risk - definitely need to scrape windshield
+- **Level 2**: Medium risk - might need to scrape windshield
+- **Level 0**: No risk - no scraping needed
+
+### Location Selection
+- Choose from predefined locations via dropdown
+- Each location has its own coordinate settings
+- Location name is included in notifications and logs
+- Easy switching between different locations
+
+### Fallback System
+If the API fails:
+1. System retries up to 3 times with configurable delays
+2. Falls back to local temperature sensor if enabled
+3. Uses configurable temperature threshold (default: 3°C)
+4. Logs all attempts and failures for debugging
+
+### Notification System
+- Sends rich notifications with custom sounds and channels
+- Includes location name and car temperature information
+- Click notifications open specified dashboard views
+- Supports multiple notification targets simultaneously
+
+## Configuration Examples
+
+### Basic Setup - Home Location
 ```yaml
-rest:
-  - resource: "https://api.eiswarnung.de?key=YOUR_API_KEY&lat=YOUR_LATITUDE&lng=YOUR_LONGITUDE"
-    name: "Eiswarnung Forecast ID"
-    scan_interval: 7200  # Update every 2 hours
-    value_template: >
-      {% if value_json.result is defined and value_json.result.forecastId is defined %}
-        {{ value_json.result.forecastId }}
-      {% else %}
-        0
-      {% endif %}
-    unit_of_measurement: "level"
+frost_api_key: "your-api-key-here"
+location_selection: "home"
+home_latitude: 53.086273193359375
+home_longitude: 8.839592933654785
+car_temperature_sensor: sensor.car_outside_temperature
+notification_targets:
+  - entity_id: notify.mobile_app_iphone
+warning_time: "07:30"
 ```
 
-**Example for Munich:**
+### Advanced Setup - Multiple Cars
 ```yaml
-rest:
-  - resource: "https://api.eiswarnung.de?key=your_key_here&lat=48.1351&lng=11.5820"
-    name: "Eiswarnung Forecast ID"
-    scan_interval: 7200
-    value_template: >
-      {% if value_json.result is defined and value_json.result.forecastId is defined %}
-        {{ value_json.result.forecastId }}
-      {% else %}
-        0
-      {% endif %}
-    unit_of_measurement: "level"
+frost_api_key: "your-api-key-here"
+location_selection: "car1"
+car1_latitude: 53.086273193359375
+car1_longitude: 8.839592933654785
+car2_latitude: 53.087000000000000
+car2_longitude: 8.840000000000000
+car_temperature_sensor: sensor.car_outside_temperature
+notification_targets:
+  - entity_id: notify.mobile_app_iphone
+  - entity_id: notify.alexa_media
+notification_title: "❄️ Frost Warning!"
+dashboard_view: "/dashboard-home/car"
+warning_time: "06:45"
+warning_days: [1, 2, 3, 4, 5, 6, 7]  # Every day
+update_interval_hours: 1
+enable_fallback_sensor: true
+fallback_temperature_threshold: 2.5
+retry_attempts: 5
+retry_delay_seconds: 60
 ```
 
-### 3. Restart Home Assistant
-
-After adding the sensor configuration, restart Home Assistant to create the sensor.
-
-### 4. Import and Configure Blueprint
-
-- Import the blueprint
-- Set **Eiswarnung Forecast Sensor** to `sensor.eiswarnung_forecast_id`
-- Configure other options as needed
-
-## Warning Levels
-
-The eiswarnung.de API provides these forecast levels:
-
-| Level | Meaning | Action |
-|-------|---------|--------|
-| **0** | No ice expected | No warning (optional good news message) |
-| **1** | High ice risk | Definitely scrape windscreen |
-| **2** | Medium ice risk | Possibly scrape windscreen |
-
-## Configuration
-
-### Required Settings
-
-- **Eiswarnung Forecast Sensor**: `sensor.eiswarnung_forecast_id` (created above)
-- **Notification Service**: Where to send warnings
-
-### Optional Settings
-
-- **Temperature Sensor**: Local temperature for additional context (car, garage, outdoor)
-- **Location Name**: Personalize messages ("at your car", "in Munich")
-- **Weekend Warnings**: Include/exclude weekend notifications
-- **Custom Messages**: Modify warning texts
-
-## Example Messages
-
-### Level 1 (High Risk)
-```
-❄️ Eiswarnung Stufe 1!
-Du musst heute die Scheiben kratzen, bevor du mit dem Auto fährst!
-Die Temperatur bei deinem Auto liegt bei -3°C.
-```
-
-### Level 2 (Medium Risk)
-```
-🌡️ Eiswarnung Stufe 2!
-Vielleicht musst du heute die Scheiben kratzen, bevor du mit dem Auto fährst!
-Die Temperatur in der Garage liegt bei 1°C.
-```
-
-### Level 0 (No Risk)
-```
-☀️ Keine Eiswarnung
-Gute Nachrichten! Heute ist kein Eis zu erwarten bei deinem Auto.
-Temperatur: 8°C.
-```
-
-## Advanced Configuration
-
-### Multiple Locations
-
-Create separate sensors for different locations:
-
+### Work Location Setup
 ```yaml
-rest:
-  # Home location
-  - resource: "https://api.eiswarnung.de?key=YOUR_KEY&lat=52.5200&lng=13.4050"
-    name: "Eiswarnung Home"
-    scan_interval: 7200
-    value_template: "{{ value_json.result.forecastId if value_json.result.forecastId is defined else 0 }}"
-  
-  # Work location  
-  - resource: "https://api.eiswarnung.de?key=YOUR_KEY&lat=48.1351&lng=11.5820"
-    name: "Eiswarnung Work"
-    scan_interval: 7200
-    value_template: "{{ value_json.result.forecastId if value_json.result.forecastId is defined else 0 }}"
+frost_api_key: "your-api-key-here"
+location_selection: "work"
+work_latitude: 52.5200
+work_longitude: 13.4050
+car_temperature_sensor: sensor.car_outside_temperature
+notification_targets:
+  - entity_id: notify.mobile_app_iphone
+warning_time: "06:30"
+warning_days: [1, 2, 3, 4, 5]  # Weekdays only
 ```
 
-Then create separate automations for each location.
+## Multiple Location Setup
 
-### Car Integration
+You can create multiple automations for different locations:
 
-Perfect for car temperature sensors:
+### Example: Home and Work Warnings
+1. **Home Automation**:
+   - Location Selection: "Home"
+   - Warning Time: "07:30"
+   - Warning Days: [1, 2, 3, 4, 5, 6, 7]
 
-```yaml
-# Blueprint Configuration
-Eiswarnung Forecast Sensor: sensor.eiswarnung_forecast_id
-Temperature Sensor: sensor.car_outside_temperature  # VW Connect, BMW, etc.
-Location Name: "bei deinem Auto"
-```
+2. **Work Automation**:
+   - Location Selection: "Work"
+   - Warning Time: "06:30"
+   - Warning Days: [1, 2, 3, 4, 5]
 
-### Garage/Carport Setup
+### Example: Multiple Cars
+1. **Primary Car**:
+   - Location Selection: "Car 1"
+   - Notification Title: "❄️ Car 1 Frost Warning!"
 
-```yaml
-# Blueprint Configuration  
-Temperature Sensor: sensor.garage_temperature
-Location Name: "in der Garage"
-High Risk Message: "❄️ Eiswarnung! Scheiben kratzen nötig. Garage: {temp_info}"
-```
+2. **Secondary Car**:
+   - Location Selection: "Car 2"
+   - Notification Title: "❄️ Car 2 Frost Warning!"
 
 ## Troubleshooting
 
-### Common Issues
+### API Issues
+- Check your API key is valid
+- Verify coordinates are correct for selected location
+- Check network connectivity
+- Review logs for specific error messages
 
-1. **No Sensor Data**:
-   - Check if API key is valid
-   - Verify latitude/longitude coordinates
-   - Check Home Assistant logs for REST errors
-   - Ensure sensor name matches blueprint configuration
+### Location Issues
+- Ensure coordinates are set for the selected location
+- Verify coordinates are within Germany (for eiswarnung.de API)
+- Check location name appears correctly in notifications
 
-2. **Wrong Location**:
-   - Verify coordinates on a map
-   - Use more precise decimal places
-   - Check if coordinates are within Germany
+### Notification Problems
+- Ensure notification services are properly configured
+- Check notification permissions on mobile devices
+- Verify notification channel settings for Android
 
-3. **No Notifications**:
-   - Test notification service separately
-   - Check weekend warning settings
-   - Verify trigger times
+### Fallback Sensor Issues
+- Confirm sensor entity ID is correct
+- Check sensor is reporting valid temperature values
+- Adjust temperature threshold if needed
 
-### Testing the Sensor
+## Migration from ioBroker
 
-Check sensor status in Developer Tools:
-- Go to **Developer Tools** → **States**
-- Find `sensor.eiswarnung_forecast_id`
-- Value should be 0, 1, or 2
+This blueprint replaces the old ioBroker script with several improvements:
 
-### API Rate Limits
+### ✅ **Improvements**
+- Modern Home Assistant integration
+- Better error handling and retry logic
+- Flexible location selection via dropdown
+- Multiple predefined location types
+- Rich notifications with actions
+- Comprehensive logging
+- Fallback sensor support
 
-- Free tier: Limited requests per day
-- Update interval: 2 hours recommended
-- Avoid intervals under 1 hour
+### 🔄 **Migration Steps**
+1. Get API key from eiswarnung.de
+2. Configure blueprint with your location settings
+3. Test with fallback sensor first
+4. Gradually replace old notifications
+5. Monitor logs for any issues
 
-## German Coordinates Reference
+## Support
 
-| City | Latitude | Longitude |
-|------|----------|-----------|
-| Berlin | 52.5200 | 13.4050 |
-| Munich | 48.1351 | 11.5820 |
-| Hamburg | 53.5511 | 9.9937 |
-| Cologne | 50.9375 | 6.9603 |
-| Frankfurt | 50.1109 | 8.6821 |
-| Stuttgart | 48.7758 | 9.1829 |
-| Düsseldorf | 51.2277 | 6.7735 |
-| Leipzig | 51.3397 | 12.3731 |
+For issues or questions:
+1. Check the logs for detailed error messages
+2. Verify all configuration settings
+3. Test with minimal configuration first
+4. Review Home Assistant documentation for notification setup
 
-## Integration Examples
+## License
 
-### With Smart Car Systems
-
-```yaml
-# Works great with:
-- VW Connect (sensor.car_outside_temperature)
-- BMW Connected Drive
-- Mercedes me
-- Tesla integration
-```
-
-### With Home Automation
-
-```yaml
-# Trigger other automations:
-- Turn on heated car seats
-- Activate garage heater  
-- Send family notifications
-- Start car warming systems
-```
-
-### With Weather Stations
-
-```yaml
-# Combine with local weather:
-Temperature Sensor: sensor.outdoor_temperature
-# Provides local vs. forecast comparison
-```
-
-## Version History
-
-- **v1.0**: Initial release with eiswarnung.de API integration
-- Professional German ice forecasting
-- RESTful sensor configuration
-- Level-based warning system
-
-## Credits
-
-Enhanced version of the original ioBroker EisScheibenWarnung script, maintaining the proven eiswarnung.de API while adding Home Assistant flexibility and modern automation features. 
+This blueprint is provided as-is for educational and personal use. 
