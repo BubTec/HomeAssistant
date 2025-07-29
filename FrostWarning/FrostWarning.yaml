@@ -153,6 +153,15 @@ blueprint:
           step: 0.000001
           unit_of_measurement: degrees
     
+    frost_forecast_sensor:
+      name: Frost Forecast Sensor
+      description: RESTful sensor that provides eiswarnung.de forecast ID (see README for setup)
+      selector:
+        entity:
+          domain: sensor
+          multiple: false
+      default: ""
+    
     car_temperature_sensor:
       name: Car Temperature Sensor
       description: Temperature sensor for car outside temperature
@@ -283,34 +292,10 @@ blueprint:
           unit_of_measurement: °C
           mode: slider
           step: 0.5
-    
-    retry_attempts:
-      name: API Retry Attempts
-      description: Number of retry attempts for API calls
-      default: 3
-      selector:
-        number:
-          min: 1
-          max: 5
-          mode: slider
-          step: 1
-    
-    retry_delay_seconds:
-      name: Retry Delay
-      description: Delay between retry attempts (in seconds)
-      default: 30
-      selector:
-        number:
-          min: 10
-          max: 300
-          unit_of_measurement: seconds
-          mode: slider
-          step: 10
 
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/FrostWarning/FrostWarning.yaml
 
 variables:
-  api_key: !input frost_api_key
   location_selection: !input location_selection
   lat: >-
     {% if location_selection == "custom" %}
@@ -360,6 +345,7 @@ variables:
     {% else %}
       "Custom Location"
     {% endif %}
+  frost_forecast_sensor: !input frost_forecast_sensor
   car_temp_sensor: !input car_temperature_sensor
   notification_targets: !input notification_targets
   dashboard_view: !input dashboard_view
@@ -370,11 +356,8 @@ variables:
     {% else %}
       {{ input.custom_warning_days }}
     {% endif %}
-  update_interval: !input update_interval_hours
   enable_fallback: !input enable_fallback_sensor
   fallback_threshold: !input fallback_temperature_threshold
-  retry_attempts: !input retry_attempts
-  retry_delay: !input retry_delay_seconds
 
 trigger:
   # Daily warning at specified time
@@ -382,7 +365,7 @@ trigger:
     at: !input warning_time
   # Regular API updates
   - platform: time_pattern
-    hours: "/{{ update_interval }}"
+    hours: "/{{ input.update_interval_hours }}"
 
 condition:
   # Check if today is a warning day
@@ -395,51 +378,21 @@ condition:
 action:
   - alias: "Check frost forecast and send warning"
     sequence:
-      # Try API first
-      - alias: "Try to get frost forecast from API"
+      # Get frost forecast from sensor
+      - alias: "Get frost forecast level"
         variables:
-          api_url: >-
-            https://api.eiswarnung.de?key={{ api_key }}&lat={{ lat }}&lng={{ lng }}
-          frost_level: null
-          api_success: false
-        
-        # Retry loop for API calls
-        - repeat:
-            count: "{{ retry_attempts }}"
-            sequence:
-              - alias: "API call attempt {{ repeat.index }}"
-                service: rest.get
-                data:
-                  url: "{{ api_url }}"
-                  timeout: 10
-                continue_on_error: true
-                
-              - alias: "Process API response"
-                if:
-                  - condition: template
-                    value_template: "{{ states('rest.get') != 'unavailable' }}"
-                then:
-                  - variables:
-                      response_data: "{{ states.rest.get.attributes.body | from_json }}"
-                      frost_level: "{{ response_data.result.forecastId if response_data.result else null }}"
-                      api_success: "{{ frost_level is not none }}"
-                  
-                  - if:
-                      - condition: template
-                        value_template: "{{ api_success }}"
-                    then:
-                      - break
-                
-              - if:
-                  - condition: template
-                    value_template: "{{ not api_success and repeat.index < retry_attempts }}"
-                then:
-                  - delay:
-                      seconds: "{{ retry_delay }}"
-                  - service: persistent_notification.create
-                    data:
-                      title: "Frost Warning API Error"
-                      message: "API call attempt {{ repeat.index }} failed, retrying in {{ retry_delay }} seconds..."
+          forecast_id: >-
+            {% if frost_forecast_sensor != "" and states(frost_forecast_sensor) not in ['unknown', 'unavailable'] %}
+              {{ states(frost_forecast_sensor) | int }}
+            {% else %}
+              null
+            {% endif %}
+          api_success: >-
+            {% if forecast_id is not none %}
+              true
+            {% else %}
+              false
+            {% endif %}
       
       # Fallback to local sensor if API failed
       - alias: "Check fallback sensor if API failed"
@@ -449,7 +402,7 @@ action:
         then:
           - variables:
               current_temp: "{{ states(car_temp_sensor) | float(0) }}"
-              frost_level: >-
+              forecast_id: >-
                 {% if current_temp <= fallback_threshold %}
                   1
                 {% else %}
@@ -461,16 +414,16 @@ action:
       - alias: "Send frost warning notification"
         if:
           - condition: template
-            value_template: "{{ api_success and frost_level in [1, 2] }}"
+            value_template: "{{ api_success and forecast_id in [1, 2] }}"
         then:
           - variables:
               car_temp: "{{ states(car_temp_sensor) | float(0) if car_temp_sensor else 'unknown' }}"
               warning_message: >-
-                {% if frost_level == 1 %}
+                {% if forecast_id == 1 %}
                   You need to scrape your windshield today before driving! 
                   Location: {{ location_name }}
                   Car temperature: {{ car_temp }}°C
-                {% elif frost_level == 2 %}
+                {% elif forecast_id == 2 %}
                   You might need to scrape your windshield today before driving! 
                   Location: {{ location_name }}
                   Car temperature: {{ car_temp }}°C
@@ -497,7 +450,7 @@ action:
       - alias: "Log frost warning sent"
         if:
           - condition: template
-            value_template: "{{ api_success and frost_level in [1, 2] }}"
+            value_template: "{{ api_success and forecast_id in [1, 2] }}"
         then:
           - service: persistent_notification.create
             data:
@@ -505,14 +458,14 @@ action:
               message: >
                 Frost warning sent at {{ timestamp }}.
                 Location: {{ location_name }}
-                Frost level: {{ frost_level }}, 
+                Frost level: {{ forecast_id }}, 
                 Car temperature: {{ car_temp }}°C
       
       # Log if no frost detected
       - alias: "Log no frost detected"
         if:
           - condition: template
-            value_template: "{{ api_success and frost_level == 0 }}"
+            value_template: "{{ api_success and forecast_id == 0 }}"
         then:
           - service: persistent_notification.create
             data:
@@ -520,7 +473,7 @@ action:
               message: >
                 No frost detected at {{ timestamp }}.
                 Location: {{ location_name }}
-                Frost level: {{ frost_level }}, 
+                Frost level: {{ forecast_id }}, 
                 Car temperature: {{ car_temp }}°C
       
       # Log API failure
@@ -533,7 +486,7 @@ action:
             data:
               title: "Frost Warning API Failure"
               message: >
-                Failed to get frost forecast after {{ retry_attempts }} attempts.
+                Failed to get frost forecast.
                 Location: {{ location_name }}
                 {% if enable_fallback and car_temp_sensor %}
                 Fallback sensor enabled but temperature threshold not met.

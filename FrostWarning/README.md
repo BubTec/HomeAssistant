@@ -12,7 +12,7 @@ A modern Home Assistant blueprint for frost warnings with flexible configuration
 - **Flexible Scheduling**: Configurable warning times and days of the week
 
 ### 🛡️ **Robust Error Handling**
-- **Retry Logic**: Automatic retry attempts for failed API calls
+- **REST Sensor Integration**: Uses Home Assistant REST sensors for reliable API calls
 - **Fallback Sensors**: Local temperature sensor backup when API fails
 - **Comprehensive Logging**: Detailed logs for debugging and monitoring
 - **Graceful Degradation**: System continues working even with API issues
@@ -30,17 +30,54 @@ A modern Home Assistant blueprint for frost warnings with flexible configuration
 - API key from [eiswarnung.de](https://eiswarnung.de)
 - Temperature sensor (optional, for fallback)
 
-### 2. Installation
-1. Copy the `FrostWarning.yaml` file to your Home Assistant configuration
-2. Import the blueprint in Home Assistant
-3. Create a new automation using this blueprint
+### 2. REST Sensor Setup
 
-### 3. Configuration
+**IMPORTANT**: You need to create a REST sensor first in your `configuration.yaml`:
+
+```yaml
+# Add this to your configuration.yaml
+rest:
+  - resource: "https://api.eiswarnung.de?key=YOUR_API_KEY&lat=YOUR_LATITUDE&lng=YOUR_LONGITUDE"
+    name: "Eiswarnung Forecast ID"
+    scan_interval: 7200  # Update every 2 hours
+    value_template: >
+      {% if value_json.result is defined and value_json.result.forecastId is defined %}
+        {{ value_json.result.forecastId }}
+      {% else %}
+        0
+      {% endif %}
+    unit_of_measurement: "level"
+```
+
+**Example for your location:**
+```yaml
+rest:
+  - resource: "https://api.eiswarnung.de?key=your_key_here&lat=53.086273193359375&lng=8.839592933654785"
+    name: "Eiswarnung Forecast ID"
+    scan_interval: 7200
+    value_template: >
+      {% if value_json.result is defined and value_json.result.forecastId is defined %}
+        {{ value_json.result.forecastId }}
+      {% else %}
+        0
+      {% endif %}
+    unit_of_measurement: "level"
+```
+
+### 3. Installation
+1. Add the REST sensor to your `configuration.yaml`
+2. Restart Home Assistant
+3. Copy the `FrostWarning.yaml` file to your Home Assistant configuration
+4. Import the blueprint in Home Assistant
+5. Create a new automation using this blueprint
+
+### 4. Configuration
 
 #### Required Settings
-- **Frost API Key**: Your eiswarnung.de API key
+- **Frost API Key**: Your eiswarnung.de API key (used in REST sensor)
 - **Location Selection**: Choose from dropdown (Home, Work, Car 1, Car 2, Garage, Custom)
 - **Location Coordinates**: Configure coordinates for each location type
+- **Frost Forecast Sensor**: Select the REST sensor you created (e.g., `sensor.eiswarnung_forecast_id`)
 - **Car Temperature Sensor**: Temperature sensor for your car (optional but recommended)
 - **Notification Targets**: Where to send warnings
 
@@ -65,7 +102,7 @@ The blueprint supports multiple predefined locations:
 ## How It Works
 
 ### API Integration
-The blueprint uses the German eiswarnung.de API to get accurate frost forecasts:
+The blueprint uses a REST sensor to get frost forecasts from eiswarnung.de:
 - **Level 1**: High risk - definitely need to scrape windshield
 - **Level 2**: Medium risk - might need to scrape windshield
 - **Level 0**: No risk - no scraping needed
@@ -77,8 +114,8 @@ The blueprint uses the German eiswarnung.de API to get accurate frost forecasts:
 - Easy switching between different locations
 
 ### Fallback System
-If the API fails:
-1. System retries up to 3 times with configurable delays
+If the REST sensor fails:
+1. System checks if fallback sensor is enabled
 2. Falls back to local temperature sensor if enabled
 3. Uses configurable temperature threshold (default: 3°C)
 4. Logs all attempts and failures for debugging
@@ -93,10 +130,24 @@ If the API fails:
 
 ### Basic Setup - Home Location
 ```yaml
-frost_api_key: "your-api-key-here"
+# In configuration.yaml
+rest:
+  - resource: "https://api.eiswarnung.de?key=your-api-key&lat=53.086273193359375&lng=8.839592933654785"
+    name: "Eiswarnung Forecast ID"
+    scan_interval: 7200
+    value_template: >
+      {% if value_json.result is defined and value_json.result.forecastId is defined %}
+        {{ value_json.result.forecastId }}
+      {% else %}
+        0
+      {% endif %}
+    unit_of_measurement: "level"
+
+# Blueprint Configuration
 location_selection: "home"
 home_latitude: 53.086273193359375
 home_longitude: 8.839592933654785
+frost_forecast_sensor: sensor.eiswarnung_forecast_id
 car_temperature_sensor: sensor.car_outside_temperature
 notification_targets:
   - entity_id: notify.mobile_app_iphone
@@ -105,12 +156,13 @@ warning_time: "07:30"
 
 ### Advanced Setup - Multiple Cars
 ```yaml
-frost_api_key: "your-api-key-here"
+# Blueprint Configuration
 location_selection: "car1"
 car1_latitude: 53.086273193359375
 car1_longitude: 8.839592933654785
 car2_latitude: 53.087000000000000
 car2_longitude: 8.840000000000000
+frost_forecast_sensor: sensor.eiswarnung_forecast_id
 car_temperature_sensor: sensor.car_outside_temperature
 notification_targets:
   - entity_id: notify.mobile_app_iphone
@@ -122,16 +174,15 @@ warning_days: [1, 2, 3, 4, 5, 6, 7]  # Every day
 update_interval_hours: 1
 enable_fallback_sensor: true
 fallback_temperature_threshold: 2.5
-retry_attempts: 5
-retry_delay_seconds: 60
 ```
 
 ### Work Location Setup
 ```yaml
-frost_api_key: "your-api-key-here"
+# Blueprint Configuration
 location_selection: "work"
 work_latitude: 52.5200
 work_longitude: 13.4050
+frost_forecast_sensor: sensor.eiswarnung_forecast_id
 car_temperature_sensor: sensor.car_outside_temperature
 notification_targets:
   - entity_id: notify.mobile_app_iphone
@@ -169,7 +220,13 @@ You can create multiple automations for different locations:
 - Check your API key is valid
 - Verify coordinates are correct for selected location
 - Check network connectivity
-- Review logs for specific error messages
+- Review REST sensor status in Developer Tools
+
+### REST Sensor Issues
+- Ensure REST sensor is properly configured in `configuration.yaml`
+- Check sensor status: Developer Tools → States → `sensor.eiswarnung_forecast_id`
+- Verify sensor value is 0, 1, or 2
+- Check Home Assistant logs for REST errors
 
 ### Location Issues
 - Ensure coordinates are set for the selected location
@@ -192,7 +249,7 @@ This blueprint replaces the old ioBroker script with several improvements:
 
 ### ✅ **Improvements**
 - Modern Home Assistant integration
-- Better error handling and retry logic
+- Better error handling with REST sensors
 - Flexible location selection via dropdown
 - Multiple predefined location types
 - Rich notifications with actions
@@ -201,16 +258,17 @@ This blueprint replaces the old ioBroker script with several improvements:
 
 ### 🔄 **Migration Steps**
 1. Get API key from eiswarnung.de
-2. Configure blueprint with your location settings
-3. Test with fallback sensor first
-4. Gradually replace old notifications
-5. Monitor logs for any issues
+2. Create REST sensor in `configuration.yaml`
+3. Configure blueprint with your location settings
+4. Test with fallback sensor first
+5. Gradually replace old notifications
+6. Monitor logs for any issues
 
 ## Support
 
 For issues or questions:
 1. Check the logs for detailed error messages
-2. Verify all configuration settings
+2. Verify REST sensor configuration
 3. Test with minimal configuration first
 4. Review Home Assistant documentation for notification setup
 
