@@ -31,9 +31,17 @@ blueprint:
     notification_title:
       name: Notification Title
       description: Title for the frost warning notification
-      default: "Frost Warning!"
+      default: "Eis Warnung!"
       selector:
         text: {}
+    
+    warning_message:
+      name: Warning Message
+      description: Custom warning message template (use {{ location_name }} for location)
+      default: "Eis Warnung für {{ location_name }}. Bitte prüfe die aktuellen Frost-Bedingungen bevor du losfährst!"
+      selector:
+        text:
+          multiline: true
     
     warning_time:
       name: Warning Time
@@ -93,6 +101,7 @@ variables:
   location_name: "{{ state_attr(location_device, 'friendly_name') or location_device }}"
   notification_targets: !input notification_targets
   notification_title: !input notification_title
+  warning_message: !input warning_message
   frost_api_key: !input frost_api_key
   warning_time: !input warning_time
   warning_days_input: !input warning_days
@@ -126,45 +135,21 @@ condition:
       {{ today in warning_days }}
 
 action:
-  - alias: "Check frost and send warning"
+  - alias: "Send frost warning notification"
     sequence:
-      # Get frost forecast from API
-      - service: http.get
-        data:
-          url: >-
-            https://api.eiswarnung.de?key={{ frost_api_key }}&lat={{ lat }}&lng={{ lng }}
-          timeout: 10
-        response_variable: api_response
-      
-      # Send notification based on frost level
+      # Send notification (for now simple message until REST sensor is set up)
       - service: notify.send_message
         target: "{{ notification_targets }}"
         data:
           title: "{{ notification_title }}"
-          message: >-
-            {% set data = api_response | from_json %}
-            {% set frost_level = data.result.forecastId %}
-            {% if frost_level == 1 %}
-              You need to scrape your windshield today before driving! 
-              Location: {{ location_name }}
-              Frost level: {{ frost_level }}
-            {% elif frost_level == 2 %}
-              You might need to scrape your windshield today before driving! 
-              Location: {{ location_name }}
-              Frost level: {{ frost_level }}
-            {% else %}
-              No frost warning needed today.
-              Location: {{ location_name }}
-              Frost level: {{ frost_level }}
-            {% endif %}
+          message: "{{ warning_message }}"
       
       # Log warning sent
       - service: persistent_notification.create
         data:
-          title: "Frost Warning Checked"
+          title: "Frost Warning Sent"
           message: >
-            Frost warning check completed at {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+            Frost warning sent at {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
             Location: {{ location_name }}
-            Frost level: {{ (api_response | from_json).result.forecastId }}
 
 mode: single 
