@@ -106,43 +106,92 @@ blueprint:
           step: 5
       default: 45
     
-    reminder_time_1:
-      name: "First Daily Reminder Time"
-      description: "First time of day to check and send reminders"
+    notification_start_time:
+      name: "Notification Start Time"
+      description: "Start time for daily notification window"
       selector:
         time:
       default: "08:00:00"
     
-    reminder_time_2:
-      name: "Second Daily Reminder Time"
-      description: "Second time of day to check and send reminders"
+    notification_end_time:
+      name: "Notification End Time"
+      description: "End time for daily notification window"
       selector:
         time:
-      default: "12:00:00"
+      default: "22:00:00"
     
-    reminder_time_3:
-      name: "Third Daily Reminder Time"
-      description: "Third time of day to check and send reminders"
+    reminder_interval_hours:
+      name: "Reminder Interval (hours)"
+      description: "How often to send reminders within notification window"
       selector:
-        time:
-      default: "16:00:00"
+        number:
+          min: 1
+          max: 12
+          step: 1
+      default: 4
     
-    reminder_time_4:
-      name: "Fourth Daily Reminder Time"
-      description: "Fourth time of day to check and send reminders"
+    cleaning_reminder_message:
+      name: "Cleaning Reminder Message"
+      description: "Custom message for cleaning reminders (use {count} for usage count)"
       selector:
-        time:
-      default: "20:00:00"
+        text:
+          multiline: true
+      default: "The litter box needs cleaning! Used {count} times since last cleaning."
+    
+    tool_alert_message:
+      name: "Tool Alert Message"
+      description: "Custom message when cleaning tool is left open"
+      selector:
+        text:
+          multiline: true
+      default: "Warning: The litter box cleaning tool is not properly stored."
+    
+    inactivity_warning_message:
+      name: "Inactivity Warning Message"
+      description: "Custom message for prolonged inactivity (48+ hours)"
+      selector:
+        text:
+          multiline: true
+      default: "Warning: No activity at the litter box for more than 48 hours. Please check on your cat!"
+    
+    cleaning_started_message:
+      name: "Cleaning Started Message"
+      description: "Message when cleaning starts"
+      selector:
+        text:
+          multiline: true
+      default: "Cat litter cleaning started. Don't forget to put the tool back!"
+    
+    cleaning_completed_message:
+      name: "Cleaning Completed Message"
+      description: "Message when cleaning is completed"
+      selector:
+        text:
+          multiline: true
+      default: "Cat litter cleaning completed and counters reset."
+    
+    tool_stored_message:
+      name: "Tool Stored Message"
+      description: "Message when cleaning tool is properly stored"
+      selector:
+        text:
+          multiline: true
+      default: "Cleaning tool properly stored."
 
 variables:
   warning_threshold: !input warning_threshold
   presence_threshold: !input presence_threshold
   visit_duration: !input visit_duration
   cleaning_completion_time: !input cleaning_completion_time
-  reminder_time_1: !input reminder_time_1
-  reminder_time_2: !input reminder_time_2
-  reminder_time_3: !input reminder_time_3
-  reminder_time_4: !input reminder_time_4
+  notification_start_time: !input notification_start_time
+  notification_end_time: !input notification_end_time
+  reminder_interval_hours: !input reminder_interval_hours
+  cleaning_reminder_message: !input cleaning_reminder_message
+  tool_alert_message: !input tool_alert_message
+  inactivity_warning_message: !input inactivity_warning_message
+  cleaning_started_message: !input cleaning_started_message
+  cleaning_completed_message: !input cleaning_completed_message
+  tool_stored_message: !input tool_stored_message
   cat_door_sensor: !input cat_door_sensor
   cleaning_tool_sensor: !input cleaning_tool_sensor
   usage_counter: !input usage_counter
@@ -173,20 +222,52 @@ trigger:
     id: "usage_counter_change"
   
   - platform: time
-    at: !input reminder_time_1
-    id: "reminder_check_1"
+    at: "00:00:00"
+    id: "periodic_check"
     
   - platform: time
-    at: !input reminder_time_2
-    id: "reminder_check_2"
+    at: "02:00:00"
+    id: "periodic_check"
     
   - platform: time
-    at: !input reminder_time_3
-    id: "reminder_check_3"
+    at: "04:00:00"
+    id: "periodic_check"
     
   - platform: time
-    at: !input reminder_time_4
-    id: "reminder_check_4"
+    at: "06:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "08:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "10:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "12:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "14:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "16:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "18:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "20:00:00"
+    id: "periodic_check"
+    
+  - platform: time
+    at: "22:00:00"
+    id: "periodic_check"
   
   - platform: homeassistant
     event: start
@@ -254,7 +335,7 @@ action:
                       entity_id: !input cleaning_tool_alert
                   - service: !input notification_service
                     data:
-                      message: "Cat litter cleaning started. Don't forget to put the tool back!"
+                      message: "{{ cleaning_started_message }}"
                   - delay:
                       seconds: "{{ cleaning_completion_time }}"
                   - if:
@@ -275,7 +356,7 @@ action:
                           entity_id: !input cat_presence_helper
                       - service: !input notification_service
                         data:
-                          message: "Cat litter cleaning completed and counters reset."
+                          message: "{{ cleaning_completed_message }}"
 
               # Cleaning tool closed
               - conditions:
@@ -287,7 +368,7 @@ action:
                       entity_id: !input cleaning_tool_alert
                   - service: !input notification_service
                     data:
-                      message: "Cleaning tool properly stored."
+                      message: "{{ tool_stored_message }}"
 
       # Handle usage counter changes
       - conditions:
@@ -316,18 +397,18 @@ action:
                     ] %}
                     {{ messages | random }}
 
-      # Daily reminder checks (4 times per day)
+      # Periodic reminder checks with time window and interval control
       - conditions:
-          - condition: or
-            conditions:
-              - condition: trigger
-                id: "reminder_check_1"
-              - condition: trigger
-                id: "reminder_check_2"
-              - condition: trigger
-                id: "reminder_check_3"
-              - condition: trigger
-                id: "reminder_check_4"
+          - condition: trigger
+            id: "periodic_check"
+          - condition: time
+            after: !input notification_start_time
+            before: !input notification_end_time
+          - condition: template
+            value_template: >
+              {% set current_hour = now().hour %}
+              {% set interval = reminder_interval_hours | int %}
+              {{ (current_hour % interval) == 0 }}
         sequence:
           - choose:
               # Send cleaning reminder if needed
@@ -339,7 +420,7 @@ action:
                     data:
                       message: >
                         {% set count = states(usage_counter) | int %}
-                        Reminder: The litter box still needs cleaning ({{ count }} uses).
+                        {{ cleaning_reminder_message.replace('{count}', count | string) }}
 
               # Send tool reminder if left open
               - conditions:
@@ -348,20 +429,15 @@ action:
                 sequence:
                   - service: !input notification_service
                     data:
-                      message: "Warning: The litter box cleaning tool is not properly stored."
+                      message: "{{ tool_alert_message }}"
 
-      # Check for prolonged inactivity (4 times per day)
+      # Check for prolonged inactivity (during notification window)
       - conditions:
-          - condition: or
-            conditions:
-              - condition: trigger
-                id: "reminder_check_1"
-              - condition: trigger
-                id: "reminder_check_2"
-              - condition: trigger
-                id: "reminder_check_3"
-              - condition: trigger
-                id: "reminder_check_4"
+          - condition: trigger
+            id: "periodic_check"
+          - condition: time
+            after: !input notification_start_time
+            before: !input notification_end_time
         sequence:
           - if:
               - condition: template
@@ -372,7 +448,7 @@ action:
             then:
               - service: !input notification_service
                 data:
-                  message: "Warning: No activity at the litter box for more than 48 hours. Please check on your cat!"
+                  message: "{{ inactivity_warning_message }}"
 
       # Initial startup check
       - conditions:
