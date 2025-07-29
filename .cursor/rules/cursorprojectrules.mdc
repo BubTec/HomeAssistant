@@ -9,3 +9,15 @@ Die originalen Scripte sind in _old zu finden.
 
 
 Es ist inhaltlich nicht wichtig die Scripte 1zu1 umzuwandeln. Es ist wichtiger die funktion an sich zu portieren und entsprechend zu Home Assistant zu portieren.
+
+
+
+
+Infos zu Blueprints findest du hier:
+https://community.home-assistant.io/c/blueprints-exchange/53
+https://www.home-assistant.io/docs/automation/using_blueprints/
+
+
+
+Hier ein Beispiel:
+https://gist.github.com/Blackshome/6edfec0ff6a25c5da0d07b88dc908238
