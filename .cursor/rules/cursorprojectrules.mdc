@@ -31,3 +31,7 @@ Sei bei den Inputs für die Blueprints nicht zu restriktiv. Hier bitte immer ein
 
 
 Bsp: Binary Sensor anstatt Motion Sensor.
+
+
+
+Wenn du neue Blueprints erstellst, schau auch immer mal in die Scripte die du bereits erstellt hast, damit du fehler nicht wiederholst und alles wie aus einem guss aussieht.
