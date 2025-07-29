@@ -141,13 +141,13 @@ trigger:
     id: "usage_counter_change"
   
   - platform: time_pattern
-    hour: "/1"
-    minute: 0
+    hours: "/1"
+    minutes: "0"
     id: "hourly_check"
   
   - platform: time_pattern
-    hour: [8, 12, 16, 20]
-    minute: 0
+    hours: "8,12,16,20"
+    minutes: "0"
     id: "inactivity_check"
   
   - platform: homeassistant
