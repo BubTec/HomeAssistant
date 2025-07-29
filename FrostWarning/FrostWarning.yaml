@@ -31,18 +31,14 @@ blueprint:
     manual_latitude:
       name: Manual Latitude
       description: Latitude coordinate (only used if manual coordinates enabled)
-      default: 53.086273
       selector:
-        text:
-          type: text
+        text: {}
     
     manual_longitude:
       name: Manual Longitude  
       description: Longitude coordinate (only used if manual coordinates enabled)
-      default: 8.839593
       selector:
-        text:
-          type: text
+        text: {}
     
     frost_forecast_sensor:
       name: Frost Forecast Sensor
