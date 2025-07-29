@@ -24,8 +24,8 @@ Intelligent frost and ice warnings based on weather data and temperature sensors
 
 [📖 Documentation](./FrostWarning/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/FrostWarning/FrostWarning.yaml)
 
-### 🔊 Smart Volume Control for Smart Assistants
-Automatically adjusts volume levels of smart assistants (Echo, Google Home, etc.) based on mode changes. Supports player/speak volume control, pattern-based filtering, and device-specific handling like the original ioBroker script.
+### 🔊 Alexa Echo Volume Control
+Automatically adjusts volume levels of Alexa Echo devices based on mode changes (night mode, presence detection). Specifically designed for Home Assistant's Alexa Media Player integration with pattern-based filtering and special device handling like the original ioBroker script.
 
 [📖 Documentation](./SmartVolumeControl/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/SmartVolumeControl/SmartVolumeControl.yaml)
 
@@ -39,7 +39,7 @@ Automatically adjusts volume levels of smart assistants (Echo, Google Home, etc.
 | **Cat Litter Box Counter** | Usage tracking, cleaning reminders, tool monitoring | Pet care automation |
 | **Birthday Reminder** | Multi-person support, age calculation, music integration | Family reminders, celebration planning |
 | **Frost Warning** | Dual warning levels, multiple temp sources, real-time updates | Car windscreen, plant protection |
-| **Smart Volume Control** | Echo/Google volume control, player/speak modes, pattern filtering | Night mode automation, smart assistant control |
+| **Alexa Echo Volume Control** | Echo-specific volume control, ignore patterns, special device handling | Night mode automation, Echo device management |
 
 ## How to Use
 
