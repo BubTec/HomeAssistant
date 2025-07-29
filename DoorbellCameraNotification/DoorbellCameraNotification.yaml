@@ -96,7 +96,8 @@ blueprint:
       default: []
       selector:
         entity:
-          domain: switch
+          domain: media_player
+          integration: fully_kiosk
           multiple: true
     
     kiosk_dashboard_url:
@@ -194,8 +195,6 @@ action:
             - variables:
                 tablet_name: "{{ repeat.item.split('.')[1] }}"
                 screen_switch: "switch.{{ tablet_name }}_bildschirm"
-                load_button: "button.{{ tablet_name }}_start_url_laden"
-                tablet_ip: "{{ state_attr(repeat.item, 'host') | default('192.168.1.100') }}"
             
             - if:
                 - condition: template
@@ -206,19 +205,12 @@ action:
                   target:
                     entity_id: "{{ screen_switch }}"
                     
-            - alias: "Change Start URL to doorbell dashboard"
-              action: rest_command.fully_kiosk_set_start_url
-              data:
-                tablet_ip: "{{ tablet_ip }}"
-                new_url: "{{ kiosk_url }}"
-                
-            - delay:
-                seconds: 2
-                
             - alias: "Load doorbell dashboard"
-              action: button.press
+              action: fully_kiosk.load_url
+              data:
+                url: "{{ kiosk_url }}"
               target:
-                entity_id: "{{ load_button }}"
+                entity_id: "{{ repeat.item }}"
   
   - alias: "Wait for door opener action"
     wait_for_trigger:
@@ -247,21 +239,12 @@ action:
           sequence:
             - variables:
                 tablet_name: "{{ repeat.item.split('.')[1] }}"
-                load_button: "button.{{ tablet_name }}_start_url_laden"
-                tablet_ip: "{{ state_attr(repeat.item, 'host') | default('192.168.1.100') }}"
-                
-            - alias: "Restore normal Start URL"
-              action: rest_command.fully_kiosk_set_start_url
-              data:
-                tablet_ip: "{{ tablet_ip }}"
-                new_url: "{{ normal_url }}"
-                
-            - delay:
-                seconds: 2
                 
             - alias: "Load normal URL"
-              action: button.press
+              action: fully_kiosk.load_url
+              data:
+                url: "{{ normal_url }}"
               target:
-                entity_id: "{{ load_button }}"
+                entity_id: "{{ repeat.item }}"
 
 mode: single 
