@@ -13,145 +13,42 @@ blueprint:
         text:
           type: text
     
-    location_selection:
-      name: Location Selection
-      description: Select the location for frost forecast
-      default: "custom"
+    location_device:
+      name: Location Device
+      description: Select a device tracker with GPS coordinates (e.g., your car, phone)
       selector:
-        select:
-          options:
-            - label: "Custom Coordinates"
-              value: "custom"
-            - label: "Home Location"
-              value: "home"
-            - label: "Work Location"
-              value: "work"
-            - label: "Car Location 1"
-              value: "car1"
-            - label: "Car Location 2"
-              value: "car2"
-            - label: "Garage Location"
-              value: "garage"
+        entity:
+          domain: device_tracker
+          multiple: false
     
-    custom_latitude:
-      name: Custom Latitude
-      description: Latitude coordinate for frost forecast (only used if Custom Coordinates selected)
+    use_manual_coordinates:
+      name: Use Manual Coordinates
+      description: Enable this to use manual coordinates instead of device location
+      default: false
+      selector:
+        boolean: {}
+    
+    manual_latitude:
+      name: Manual Latitude
+      description: Latitude coordinate (only used if manual coordinates enabled)
+      default: 53.086273
       selector:
         number:
           min: -90
           max: 90
-          step: "0.000001"
-          unit_of_measurement: degrees
+          step: 0.000001
+          mode: box
     
-    custom_longitude:
-      name: Custom Longitude
-      description: Longitude coordinate for frost forecast (only used if Custom Coordinates selected)
+    manual_longitude:
+      name: Manual Longitude  
+      description: Longitude coordinate (only used if manual coordinates enabled)
+      default: 8.839593
       selector:
         number:
           min: -180
           max: 180
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    home_latitude:
-      name: Home Latitude
-      description: Home location latitude
-      selector:
-        number:
-          min: -90
-          max: 90
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    home_longitude:
-      name: Home Longitude
-      description: Home location longitude
-      selector:
-        number:
-          min: -180
-          max: 180
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    work_latitude:
-      name: Work Latitude
-      description: Work location latitude
-      selector:
-        number:
-          min: -90
-          max: 90
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    work_longitude:
-      name: Work Longitude
-      description: Work location longitude
-      selector:
-        number:
-          min: -180
-          max: 180
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    car1_latitude:
-      name: Car 1 Latitude
-      description: Car 1 location latitude
-      selector:
-        number:
-          min: -90
-          max: 90
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    car1_longitude:
-      name: Car 1 Longitude
-      description: Car 1 location longitude
-      selector:
-        number:
-          min: -180
-          max: 180
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    car2_latitude:
-      name: Car 2 Latitude
-      description: Car 2 location latitude
-      selector:
-        number:
-          min: -90
-          max: 90
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    car2_longitude:
-      name: Car 2 Longitude
-      description: Car 2 location longitude
-      selector:
-        number:
-          min: -180
-          max: 180
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    garage_latitude:
-      name: Garage Latitude
-      description: Garage location latitude
-      selector:
-        number:
-          min: -90
-          max: 90
-          step: "0.000001"
-          unit_of_measurement: degrees
-    
-    garage_longitude:
-      name: Garage Longitude
-      description: Garage location longitude
-      selector:
-        number:
-          min: -180
-          max: 180
-          step: "0.000001"
-          unit_of_measurement: degrees
+          step: 0.000001
+          mode: box
     
     frost_forecast_sensor:
       name: Frost Forecast Sensor
@@ -270,9 +167,8 @@ blueprint:
         number:
           min: 1
           max: 24
-          unit_of_measurement: hours
           mode: slider
-          step: "1"
+          step: 1
     
     enable_fallback_sensor:
       name: Enable Fallback Sensor
@@ -289,61 +185,31 @@ blueprint:
         number:
           min: -10
           max: 10
-          unit_of_measurement: °C
           mode: slider
-          step: "0.5"
+          step: 0.5
 
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/FrostWarning/FrostWarning.yaml
 
 variables:
-  location_selection: !input location_selection
+  location_device: !input location_device
+  use_manual_coordinates: !input use_manual_coordinates
   lat: >-
-    {% if location_selection == "custom" %}
-      {{ input.custom_latitude }}
-    {% elif location_selection == "home" %}
-      {{ input.home_latitude }}
-    {% elif location_selection == "work" %}
-      {{ input.work_latitude }}
-    {% elif location_selection == "car1" %}
-      {{ input.car1_latitude }}
-    {% elif location_selection == "car2" %}
-      {{ input.car2_latitude }}
-    {% elif location_selection == "garage" %}
-      {{ input.garage_latitude }}
+    {% if use_manual_coordinates %}
+      {{ input.manual_latitude }}
     {% else %}
-      {{ input.custom_latitude }}
+      {{ state_attr(location_device, 'latitude') | float }}
     {% endif %}
   lng: >-
-    {% if location_selection == "custom" %}
-      {{ input.custom_longitude }}
-    {% elif location_selection == "home" %}
-      {{ input.home_longitude }}
-    {% elif location_selection == "work" %}
-      {{ input.work_longitude }}
-    {% elif location_selection == "car1" %}
-      {{ input.car1_longitude }}
-    {% elif location_selection == "car2" %}
-      {{ input.car2_longitude }}
-    {% elif location_selection == "garage" %}
-      {{ input.garage_longitude }}
+    {% if use_manual_coordinates %}
+      {{ input.manual_longitude }}
     {% else %}
-      {{ input.custom_longitude }}
+      {{ state_attr(location_device, 'longitude') | float }}
     {% endif %}
   location_name: >-
-    {% if location_selection == "custom" %}
-      "Custom Location"
-    {% elif location_selection == "home" %}
-      "Home"
-    {% elif location_selection == "work" %}
-      "Work"
-    {% elif location_selection == "car1" %}
-      "Car 1"
-    {% elif location_selection == "car2" %}
-      "Car 2"
-    {% elif location_selection == "garage" %}
-      "Garage"
+    {% if use_manual_coordinates %}
+      "Manual Location"
     {% else %}
-      "Custom Location"
+      {{ state_attr(location_device, 'friendly_name') or location_device }}
     {% endif %}
   frost_forecast_sensor: !input frost_forecast_sensor
   car_temp_sensor: !input car_temperature_sensor
