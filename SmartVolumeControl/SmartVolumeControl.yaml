@@ -1,9 +1,9 @@
 blueprint:
-  name: Alexa Echo Volume Control
+  name: Smart Alexa Echo Volume Control
   description: >
     Automatically adjusts volume levels of Alexa Echo devices based on mode changes (night mode, presence detection, etc.).
     Works with Home Assistant's Alexa Media Player integration to control Echo volume entities.
-    Replicates the functionality of the original ioBroker Echo volume script.
+    Improved version with proper filtering for Alexa Media Player devices.
   domain: automation
   input:
     mode_entity:
@@ -16,16 +16,14 @@ blueprint:
             - binary_sensor
             - sensor
             - switch
-      default: ""
     
     echo_entities:
       name: Echo Volume Entities
-      description: Echo volume entities to control (leave empty to auto-discover all Echo devices)
+      description: Select specific Echo volume entities to control (leave empty for auto-discovery)
       selector:
         entity:
-          domain:
-            - number
-            - input_number
+          domain: media_player
+          integration: alexa_media
           multiple: true
       default: []
     
@@ -38,6 +36,7 @@ blueprint:
           max: 100
           step: 1
           unit_of_measurement: "%"
+          mode: slider
       default: 20
     
     high_volume:
@@ -49,6 +48,7 @@ blueprint:
           max: 100
           step: 1
           unit_of_measurement: "%"
+          mode: slider
       default: 40
     
     ignore_entities:
@@ -56,12 +56,14 @@ blueprint:
       description: Echo entities to exclude from automatic control
       selector:
         entity:
+          domain: media_player
+          integration: alexa_media
           multiple: true
       default: []
     
     ignore_patterns:
-      name: Ignore Patterns
-      description: Device name patterns to ignore (e.g., specific room names like "basement", "garage")
+      name: Ignore Device Name Patterns
+      description: Device name patterns to ignore (one per line, e.g., "basement", "garage", "bedroom")
       selector:
         text:
           multiline: true
@@ -69,9 +71,12 @@ blueprint:
     
     special_device:
       name: Special Echo Device (Optional)
-      description: Echo entity that gets different volume levels
+      description: Echo entity that gets different volume levels than the others
       selector:
         entity:
+          domain: media_player
+          integration: alexa_media
+          multiple: false
       default: ""
     
     special_low_volume:
@@ -83,6 +88,7 @@ blueprint:
           max: 100
           step: 1
           unit_of_measurement: "%"
+          mode: slider
       default: 30
     
     special_high_volume:
@@ -94,13 +100,14 @@ blueprint:
           max: 100
           step: 1
           unit_of_measurement: "%"
+          mode: slider
       default: 80
     
     use_random_delay:
       name: Use Random Delays
-      description: Add random delays to prevent simultaneous commands (like original ioBroker script)
+      description: Add random delays to prevent simultaneous commands (recommended for many devices)
       selector:
-        boolean:
+        boolean: {}
       default: true
     
     max_delay:
@@ -112,6 +119,7 @@ blueprint:
           max: 30
           step: 1
           unit_of_measurement: "seconds"
+          mode: slider
       default: 10
     
     special_delay:
@@ -123,7 +131,10 @@ blueprint:
           max: 60
           step: 1
           unit_of_measurement: "seconds"
+          mode: slider
       default: 15
+
+  source_url: https://github.com/your-repo/HomeAssistant/blob/main/SmartVolumeControl/SmartVolumeControl.yaml
 
 variables:
   mode_entity: !input mode_entity
@@ -176,25 +187,16 @@ action:
           []
         {% endif %}
       
-      # Get list of Echo volume entities to control
+      # Get list of Echo media_player entities to control
       all_echo_entities: >
         {% if echo_entities | length > 0 %}
           {{ echo_entities }}
         {% else %}
           {% set all_entities = [] %}
           
-          {# Find number entities for Echo devices #}
-          {% for entity in states.number %}
-            {% set entity_name = entity.entity_id.lower() %}
-            {% if ('alexa' in entity_name or 'echo' in entity_name or 'lautsprecher' in entity_name) and 'volume' in entity_name %}
-              {% set all_entities = all_entities + [entity.entity_id] %}
-            {% endif %}
-          {% endfor %}
-          
-          {# Find input_number entities for Echo devices #}
-          {% for entity in states.input_number %}
-            {% set entity_name = entity.entity_id.lower() %}
-            {% if ('alexa' in entity_name or 'echo' in entity_name or 'lautsprecher' in entity_name) and 'volume' in entity_name %}
+          {# Find Alexa Media Player entities #}
+          {% for entity in states.media_player %}
+            {% if state_attr(entity.entity_id, 'integration') == 'alexa_media' %}
               {% set all_entities = all_entities + [entity.entity_id] %}
             {% endif %}
           {% endfor %}
@@ -249,31 +251,13 @@ action:
         - delay:
             seconds: "{{ random_delay }}"
         
-        # Use appropriate service based on entity domain
-        - choose:
-            # Number entities (most Alexa volume controls)
-            - conditions:
-                - condition: template
-                  value_template: "{{ repeat.item.startswith('number.') }}"
-              sequence:
-                - service: number.set_value
-                  target:
-                    entity_id: "{{ repeat.item }}"
-                  data:
-                    value: "{{ normal_volume }}"
-                  continue_on_error: true
-            
-            # Input number entities
-            - conditions:
-                - condition: template
-                  value_template: "{{ repeat.item.startswith('input_number.') }}"
-              sequence:
-                - service: input_number.set_value
-                  target:
-                    entity_id: "{{ repeat.item }}"
-                  data:
-                    value: "{{ normal_volume }}"
-                  continue_on_error: true
+        # Set volume for Alexa Media Player
+        - service: media_player.volume_set
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            volume_level: "{{ normal_volume / 100 }}"
+          continue_on_error: true
 
   # Control special Echo device if specified
   - condition: template
@@ -282,28 +266,12 @@ action:
   - delay:
       seconds: "{{ special_delay }}"
   
-  # Use appropriate service for special device
-  - choose:
-      # Number entities (most Alexa volume controls)
-      - conditions:
-          - condition: template
-            value_template: "{{ special_device.startswith('number.') }}"
-        sequence:
-          - service: number.set_value
-            target:
-              entity_id: "{{ special_device }}"
-            data:
-              value: "{{ target_volume }}"
-            continue_on_error: true
-      
-      # Input number entities
-      - conditions:
-          - condition: template
-            value_template: "{{ special_device.startswith('input_number.') }}"
-        sequence:
-          - service: input_number.set_value
-            target:
-              entity_id: "{{ special_device }}"
-            data:
-              value: "{{ target_volume }}"
-            continue_on_error: true 
+  # Set volume for special device
+  - service: media_player.volume_set
+    target:
+      entity_id: "{{ special_device }}"
+    data:
+      volume_level: "{{ target_volume / 100 }}"
+    continue_on_error: true
+
+mode: single 
