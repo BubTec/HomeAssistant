@@ -68,6 +68,16 @@ blueprint:
         text:
           type: text
     
+    notification_channel:
+      name: Notification Channel (Android)
+      description: >
+        Android notification channel name. Different channels can have different sounds
+        set in Android settings (Settings > Companion app > Notification channels)
+      default: "doorbell_alerts"
+      selector:
+        text:
+          type: text
+    
     action_timeout:
       name: Action Timeout
       description: Time in seconds during which the notification actions are active
@@ -115,6 +125,7 @@ action:
       data:
         push:
           sound: !input notification_sound
+        channel: !input notification_channel
         ttl: 0
         priority: high
         image: "{{ image_file }}"

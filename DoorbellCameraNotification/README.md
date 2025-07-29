@@ -36,7 +36,8 @@ When creating an automation from this blueprint, configure:
 - **Dashboard View**: Path to open when notification is clicked (e.g., `/dashboard-home/entrance`)
 - **Door Opener Action**: Action to perform when "Open Door" is pressed
 - **Door Button Title**: Text for the door opener button
-- **Notification Sound**: iOS notification sound file
+- **Notification Sound (iOS)**: iOS notification sound file
+- **Notification Channel (Android)**: Android notification channel for custom sounds
 - **Action Timeout**: How long the action button remains active
 
 ### 3. Create Notification Groups (Optional)
@@ -59,6 +60,54 @@ The blueprint saves snapshots to `/config/www/doorbell/`. Make sure this directo
 ```bash
 mkdir -p /config/www/doorbell
 ```
+
+## Notification Sounds
+
+Notification sounds work differently on iOS and Android:
+
+### iOS Custom Sounds
+
+iOS supports direct sound file specification in the notification:
+
+```yaml
+notification_sound: "US-EN-Morgan-Freeman-Someone-Is-Arriving.wav"
+```
+
+Available pre-installed sounds include:
+- `US-EN-Morgan-Freeman-Someone-Is-Arriving.wav`
+- `US-EN-Alexa-Motion-At-Front-Door.wav`
+- `US-EN-Daisy-Front-Door-Motion.wav`
+- And many more...
+
+You can also upload custom sounds via iTunes or cloud storage.
+
+### Android Notification Channels
+
+Android uses notification channels to manage sounds. Each channel can have its own sound:
+
+1. **Set a custom channel in the blueprint**:
+   ```yaml
+   notification_channel: "doorbell_alerts"
+   ```
+
+2. **Configure the sound on your Android device**:
+   - Go to **Settings** > **Apps** > **Home Assistant**
+   - Select **Notifications** > **Companion app** > **Notification channels**
+   - Find your channel (e.g., "doorbell_alerts")
+   - Tap on it and select **Sound**
+   - Choose from system sounds or add custom sounds
+
+3. **Create multiple channels for different purposes**:
+   - `doorbell_front` - Front door alerts
+   - `doorbell_back` - Back door alerts  
+   - `doorbell_urgent` - Emergency alerts
+
+### Tips for Both Platforms
+
+- Test notification sounds during setup
+- Consider different sound volumes for day/night
+- Use distinct sounds for different types of alerts
+- Some Android devices may require notification permissions to be manually enabled
 
 ## Configuration Examples
 
@@ -89,6 +138,28 @@ door_opener_action:
       entity_id: switch.door_lock
 ```
 
+### Android Notification Channel Examples
+
+**Front Door (High Priority)**
+```yaml
+notification_channel: "doorbell_front_door"
+notification_title: "Front Door Visitor"
+```
+
+**Back Door (Normal Priority)**  
+```yaml
+notification_channel: "doorbell_back_door"
+notification_title: "Back Door Activity"
+```
+
+**Emergency/Security**
+```yaml
+notification_channel: "doorbell_security"
+notification_title: "Security Alert"
+```
+
+After creating these automations, configure different sounds for each channel in your Android settings.
+
 ## Usage
 
 1. When someone triggers the doorbell entity, the automation:
@@ -118,6 +189,12 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
 - **No snapshot**: Verify camera entity is working and `/config/www/doorbell/` directory exists
 - **Door opener not working**: Test the action independently in Developer Tools
 - **Automation not appearing**: Check YAML syntax and blueprint import
+- **iOS sound not playing**: Ensure sound file exists and device is not in silent mode
+- **Android custom sound not working**: 
+  - Check notification channel settings on device
+  - Ensure Home Assistant app has notification permissions
+  - Try creating a test notification to verify channel setup
+- **Android notification channel not created**: Channel is created automatically on first notification
 
 ## Based On
 
