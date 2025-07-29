@@ -10,8 +10,9 @@ A Home Assistant blueprint that sends actionable notifications with camera snaps
 - 🎛️ **Dashboard Integration**: Clicking the notification opens your specified dashboard view
 - 🔊 **Custom Sounds**: Configurable notification sounds for iOS and Android devices
 - ⏱️ **Timeout Control**: Configurable timeout for notification actions
-- 📺 **Fully Kiosk Integration**: Automatically redirects tablet displays to doorbell dashboard
-- 🌟 **Auto-Return**: Tablets automatically return to original view after configurable timeout
+- 📺 **Fully Kiosk Integration**: Automatically redirects tablet displays via REST API and button controls
+- 🌟 **Auto-Return**: Tablets return to configured normal URL after timeout
+- ⚙️ **Simple Configuration**: Fixed URL configuration without complex helper dependencies
 
 ## Requirements
 
@@ -20,7 +21,7 @@ A Home Assistant blueprint that sends actionable notifications with camera snaps
 - A trigger entity (switch, binary_sensor, button, etc.)
 - An action to open the door (switch, script, etc.)
 - Mobile device with the Home Assistant Companion App
-- **Optional**: Fully Kiosk Browser Integration for tablet dashboard control
+- **Optional**: Fully Kiosk Browser Integration with Remote Admin enabled for tablet control
 
 ## Setup
 
@@ -42,9 +43,10 @@ When creating an automation from this blueprint, configure:
 - **Notification Sound (iOS)**: iOS notification sound file
 - **Notification Channel (Android)**: Android notification channel for custom sounds
 - **Action Timeout**: How long the action button remains active
-- **Fully Kiosk Tablets**: Select tablet entities to redirect when doorbell rings
-- **Kiosk Dashboard URL**: Dashboard path to display on tablets
-- **Kiosk Return Timeout**: Time before tablets return to original view (0 = no auto-return)
+- **Fully Kiosk Tablets**: Select tablet screen switch entities (e.g., `switch.buro_tablet_bildschirm`)
+- **Kiosk Dashboard URL**: Dashboard path to display when doorbell rings
+- **Normal Start URL**: Standard URL to return to after timeout
+- **Kiosk Return Timeout**: Time before tablets return to normal URL (0 = no auto-return)
 - **Wake Tablet Screens**: Whether to wake up sleeping tablets
 
 ### 3. Create Notification Groups (Optional)
@@ -64,12 +66,26 @@ notify:
 
 If you want to redirect tablet displays when the doorbell rings:
 
-1. Install the **Fully Kiosk Browser** app on your tablets
-2. Install the **Fully Kiosk Browser** integration in Home Assistant:
+1. **Install Fully Kiosk Browser** app on your tablets
+2. **Install the Fully Kiosk Browser integration** in Home Assistant:
    - Go to **Settings** > **Devices & Services** > **Add Integration**
    - Search for "Fully Kiosk Browser"
    - Configure with your tablet's IP address and password
-3. Your tablets will appear as `media_player` entities (e.g., `media_player.tablet_wohnzimmer`)
+3. **Enable Remote Admin** in Fully Kiosk app:
+   - Open Fully Kiosk app settings
+   - Enable **Remote Administration**
+   - Set a **Remote Admin Password**
+   - Enable **Remote Admin from Local Network**
+4. **Add REST Commands** to your `configuration.yaml`:
+
+```yaml
+rest_command:
+  fully_kiosk_set_start_url:
+    url: "http://{{ tablet_ip }}:2323/?cmd=setStringSetting&key=startURL&value={{ new_url }}&password=YOUR_FULLY_PASSWORD"
+    method: GET
+```
+
+Replace `YOUR_FULLY_PASSWORD` with your actual Remote Admin password.
 
 ### 5. Ensure Directory Exists
 
@@ -183,33 +199,37 @@ After creating these automations, configure different sounds for each channel in
 **Basic Tablet Redirect**
 ```yaml
 kiosk_tablets:
-  - media_player.tablet_wohnzimmer
-  - media_player.tablet_küche
+  - switch.buro_tablet_bildschirm
+  - switch.kuche_tablet_bildschirm
 kiosk_dashboard_url: "/dashboard-home/entrance"
+kiosk_normal_url: "/dashboard-home"
 kiosk_return_timeout: 30
 kiosk_wake_screen: true
 ```
 
-**Different Dashboards for Different Areas**
+**Different Dashboards per Blueprint**
 ```yaml
-# Living Room Tablet - Show entrance cam
+# Entrance Door Blueprint
 kiosk_tablets: 
-  - media_player.tablet_wohnzimmer
+  - switch.buro_tablet_bildschirm
 kiosk_dashboard_url: "/dashboard-security/entrance-full"
+kiosk_normal_url: "/dashboard-home"
 kiosk_return_timeout: 45
 
-# Kitchen Tablet - Show quick overview
+# Back Door Blueprint
 kiosk_tablets:
-  - media_player.tablet_küche  
+  - switch.kuche_tablet_bildschirm
 kiosk_dashboard_url: "/dashboard-home/entrance-compact"
+kiosk_normal_url: "/dashboard-kiosk"
 kiosk_return_timeout: 20
 ```
 
 **No Auto-Return (Manual Navigation)**
 ```yaml
 kiosk_tablets:
-  - media_player.tablet_haupteingang
+  - switch.buro_tablet_bildschirm
 kiosk_dashboard_url: "/dashboard-home/entrance"
+kiosk_normal_url: "/dashboard-home"
 kiosk_return_timeout: 0  # No automatic return
 kiosk_wake_screen: true
 ```
@@ -259,17 +279,24 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
 - **Android notification channel not created**: Channel is created automatically on first notification
 - **Tablets not redirecting**: 
   - Check Fully Kiosk integration is installed and tablets are discovered
-  - Verify tablet entities are `media_player` domain with `fully_kiosk` integration
-  - Test manually: Developer Tools > Services > `fully_kiosk.load_url`
+  - Verify tablet entities are `switch` domain (e.g., `switch.tablet_bildschirm`)
+  - Check REST command is added to `configuration.yaml`
+  - Test manually: Developer Tools > Services > `rest_command.fully_kiosk_set_start_url`
+  - Verify Remote Admin is enabled in Fully Kiosk app
 - **Tablets not waking up**: 
   - Check "Wake Tablet Screens" is enabled
-  - Verify Fully Kiosk app has device admin permissions on tablet
-  - Some tablets may need "Prevent Sleep" enabled in Fully Kiosk settings
-  - Test manually: `fully_kiosk.screen_on` service
-- **Tablets not returning to original view**: 
+  - Verify screen switch entity exists (e.g., `switch.buro_tablet_bildschirm`)
+  - Test manually: Developer Tools > Services > `switch.turn_on` on screen switch
+- **Tablets not returning to normal view**: 
   - Check return timeout is > 0
-  - Verify tablet has a proper start URL configured in Fully Kiosk
-  - Test manually: `fully_kiosk.load_start_url` service
+  - Verify normal start URL is configured correctly
+  - Check REST command works with your Fully password
+  - Test manually: Check if normal URL loads correctly in tablet
+- **REST command errors**:
+  - Verify Remote Admin password is correct
+  - Check tablet IP addresses are accessible from Home Assistant
+  - Test manually: `http://TABLET_IP:2323/?cmd=deviceInfo&password=PASSWORD`
+  - Ensure Remote Admin is enabled and accessible from Local Network
 
 ## Based On
 

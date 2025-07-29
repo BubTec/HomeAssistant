@@ -96,21 +96,28 @@ blueprint:
       default: []
       selector:
         entity:
-          domain: media_player
-          integration: fully_kiosk
+          domain: switch
           multiple: true
     
     kiosk_dashboard_url:
       name: Kiosk Dashboard URL
-      description: Dashboard URL to display on tablets (relative to HA, e.g., /dashboard-home/entrance)
+      description: Dashboard URL to display on tablets when doorbell rings (e.g., /dashboard-home/entrance)
       default: "/dashboard-home/entrance"
+      selector:
+        text:
+          type: text
+    
+    kiosk_normal_url:
+      name: Normal Start URL
+      description: Normal start URL to return to after timeout (e.g., /dashboard-home)
+      default: "/dashboard-home"
       selector:
         text:
           type: text
     
     kiosk_return_timeout:
       name: Kiosk Return Timeout
-      description: Time in seconds before tablets return to original view (0 = no auto-return)
+      description: Time in seconds before tablets return to normal URL (0 = no auto-return)
       default: 30
       selector:
         number:
@@ -135,6 +142,7 @@ variables:
     /local/doorbell/{{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}.jpg
   kiosk_tablets: !input kiosk_tablets
   kiosk_url: !input kiosk_dashboard_url
+  normal_url: !input kiosk_normal_url
   kiosk_timeout: !input kiosk_return_timeout
   wake_screens: !input kiosk_wake_screen
 
@@ -180,24 +188,37 @@ action:
       - condition: template
         value_template: "{{ kiosk_tablets | length > 0 }}"
     then:
-      - if:
-          - condition: template
-            value_template: "{{ wake_screens }}"
-        then:
-          - repeat:
-              for_each: "{{ kiosk_tablets }}"
-              sequence:
-                - action: media_player.turn_on
-                  target:
-                    entity_id: "{{ repeat.item }}"
       - repeat:
           for_each: "{{ kiosk_tablets }}"
           sequence:
-            - action: fully_kiosk.load_url
+            - variables:
+                tablet_name: "{{ repeat.item.split('.')[1] }}"
+                screen_switch: "switch.{{ tablet_name }}_bildschirm"
+                load_button: "button.{{ tablet_name }}_start_url_laden"
+                tablet_ip: "{{ state_attr(repeat.item, 'host') | default('192.168.1.100') }}"
+            
+            - if:
+                - condition: template
+                  value_template: "{{ wake_screens }}"
+              then:
+                - alias: "Turn on tablet screen"
+                  action: switch.turn_on
+                  target:
+                    entity_id: "{{ screen_switch }}"
+                    
+            - alias: "Change Start URL to doorbell dashboard"
+              action: rest_command.fully_kiosk_set_start_url
               data:
-                url: "{{ kiosk_url }}"
+                tablet_ip: "{{ tablet_ip }}"
+                new_url: "{{ kiosk_url }}"
+                
+            - delay:
+                seconds: 2
+                
+            - alias: "Load doorbell dashboard"
+              action: button.press
               target:
-                entity_id: "{{ repeat.item }}"
+                entity_id: "{{ load_button }}"
   
   - alias: "Wait for door opener action"
     wait_for_trigger:
@@ -214,7 +235,7 @@ action:
         value_template: "{{ wait.trigger.event.data.action == action_open_door }}"
     then: !input door_opener_action
   
-  - alias: "Return tablets to original view"
+  - alias: "Return tablets to normal view"
     if:
       - condition: template
         value_template: "{{ kiosk_tablets | length > 0 and kiosk_timeout > 0 }}"
@@ -224,8 +245,23 @@ action:
       - repeat:
           for_each: "{{ kiosk_tablets }}"
           sequence:
-            - action: fully_kiosk.load_start_url
+            - variables:
+                tablet_name: "{{ repeat.item.split('.')[1] }}"
+                load_button: "button.{{ tablet_name }}_start_url_laden"
+                tablet_ip: "{{ state_attr(repeat.item, 'host') | default('192.168.1.100') }}"
+                
+            - alias: "Restore normal Start URL"
+              action: rest_command.fully_kiosk_set_start_url
+              data:
+                tablet_ip: "{{ tablet_ip }}"
+                new_url: "{{ normal_url }}"
+                
+            - delay:
+                seconds: 2
+                
+            - alias: "Load normal URL"
+              action: button.press
               target:
-                entity_id: "{{ repeat.item }}"
+                entity_id: "{{ load_button }}"
 
 mode: single 
