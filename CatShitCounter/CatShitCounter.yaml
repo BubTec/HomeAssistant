@@ -105,12 +105,44 @@ blueprint:
           max: 180
           step: 5
       default: 45
+    
+    reminder_time_1:
+      name: "First Daily Reminder Time"
+      description: "First time of day to check and send reminders"
+      selector:
+        time:
+      default: "08:00:00"
+    
+    reminder_time_2:
+      name: "Second Daily Reminder Time"
+      description: "Second time of day to check and send reminders"
+      selector:
+        time:
+      default: "12:00:00"
+    
+    reminder_time_3:
+      name: "Third Daily Reminder Time"
+      description: "Third time of day to check and send reminders"
+      selector:
+        time:
+      default: "16:00:00"
+    
+    reminder_time_4:
+      name: "Fourth Daily Reminder Time"
+      description: "Fourth time of day to check and send reminders"
+      selector:
+        time:
+      default: "20:00:00"
 
 variables:
   warning_threshold: !input warning_threshold
   presence_threshold: !input presence_threshold
   visit_duration: !input visit_duration
   cleaning_completion_time: !input cleaning_completion_time
+  reminder_time_1: !input reminder_time_1
+  reminder_time_2: !input reminder_time_2
+  reminder_time_3: !input reminder_time_3
+  reminder_time_4: !input reminder_time_4
   cat_door_sensor: !input cat_door_sensor
   cleaning_tool_sensor: !input cleaning_tool_sensor
   usage_counter: !input usage_counter
@@ -140,15 +172,21 @@ trigger:
     entity_id: !input usage_counter
     id: "usage_counter_change"
   
-  - platform: time_pattern
-    hours: "/1"
-    minutes: "0"
-    id: "hourly_check"
-  
-  - platform: time_pattern
-    hours: "8,12,16,20"
-    minutes: "0"
-    id: "inactivity_check"
+  - platform: time
+    at: !input reminder_time_1
+    id: "reminder_check_1"
+    
+  - platform: time
+    at: !input reminder_time_2
+    id: "reminder_check_2"
+    
+  - platform: time
+    at: !input reminder_time_3
+    id: "reminder_check_3"
+    
+  - platform: time
+    at: !input reminder_time_4
+    id: "reminder_check_4"
   
   - platform: homeassistant
     event: start
@@ -278,13 +316,18 @@ action:
                     ] %}
                     {{ messages | random }}
 
-      # Hourly checks and reminders
+      # Daily reminder checks (4 times per day)
       - conditions:
-          - condition: trigger
-            id: "hourly_check"
-          - condition: time
-            after: "09:00:00"
-            before: "22:00:00"
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: "reminder_check_1"
+              - condition: trigger
+                id: "reminder_check_2"
+              - condition: trigger
+                id: "reminder_check_3"
+              - condition: trigger
+                id: "reminder_check_4"
         sequence:
           - choose:
               # Send cleaning reminder if needed
@@ -307,10 +350,18 @@ action:
                     data:
                       message: "Warning: The litter box cleaning tool is not properly stored."
 
-      # Check for prolonged inactivity (every 4 hours during day)
+      # Check for prolonged inactivity (4 times per day)
       - conditions:
-          - condition: trigger
-            id: "inactivity_check"
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: "reminder_check_1"
+              - condition: trigger
+                id: "reminder_check_2"
+              - condition: trigger
+                id: "reminder_check_3"
+              - condition: trigger
+                id: "reminder_check_4"
         sequence:
           - if:
               - condition: template
