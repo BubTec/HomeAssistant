@@ -18,43 +18,43 @@ blueprint:
           domain: binary_sensor
     
     usage_counter:
-      name: "Usage Counter Helper"
-      description: "Counter helper to track current usage since last cleaning (e.g., counter.catshit_lastseen)"
+      name: "Usage Counter Helper (counter.catshit_lastseen)"
+      description: "Counter helper to track current usage since last cleaning"
       selector:
         entity:
           domain: counter
     
     total_counter:
-      name: "Total Usage Counter Helper"
-      description: "Counter helper to track total usage (e.g., counter.catshit_totalcounter)"
+      name: "Total Usage Counter Helper (counter.catshit_totalcounter)"
+      description: "Counter helper to track total usage"
       selector:
         entity:
           domain: counter
     
     clean_counter:
-      name: "Cleaning Counter Helper"  
-      description: "Counter helper to track number of cleanings (e.g., counter.catshit_counter)"
+      name: "Cleaning Counter Helper (counter.catshit_counter)"  
+      description: "Counter helper to track number of cleanings"
       selector:
         entity:
           domain: counter
     
     needs_cleaning_helper:
-      name: "Needs Cleaning Boolean Helper"
-      description: "Input boolean to track if litter box needs cleaning (e.g., input_boolean.catshit_cleaning)"
+      name: "Needs Cleaning Boolean Helper (input_boolean.catshit_cleaning)"
+      description: "Input boolean to track if litter box needs cleaning"
       selector:
         entity:
           domain: input_boolean
     
     cleaning_tool_alert:
-      name: "Cleaning Tool Alert Boolean Helper"
-      description: "Input boolean to track if cleaning tool is left open (e.g., input_boolean.catshit_toolcheck)"
+      name: "Cleaning Tool Alert Boolean Helper (input_boolean.catshit_toolcheck)"
+      description: "Input boolean to track if cleaning tool is left open"
       selector:
         entity:
           domain: input_boolean
     
     cat_presence_helper:
-      name: "Cat Presence Detection Helper"
-      description: "Input boolean to track if cat presence is detected (e.g., input_boolean.catshit_tracker)"
+      name: "Cat Presence Detection Helper (input_boolean.catshit_tracker)"
+      description: "Input boolean to track if cat presence is detected"
       selector:
         entity:
           domain: input_boolean
