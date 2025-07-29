@@ -1,0 +1,141 @@
+blueprint:
+  name: Doorbell Camera Notification with Door Opener
+  description: >
+    Blueprint for automation that sends actionable notification with camera snapshot
+    when doorbell is pressed. The notification includes a photo from the specified camera
+    and has an action button to open the door. Clicking on the notification itself
+    opens the specified dashboard view. Snapshots are stored in config/www/doorbell folder.
+  domain: automation
+  input:
+    doorbell_trigger:
+      name: Doorbell Trigger Entity
+      description: Entity that triggers the doorbell notification (e.g., switch, binary_sensor, button)
+      selector:
+        entity: {}
+    
+    doorbell_camera:
+      name: Doorbell Camera
+      description: Camera entity to take snapshot from
+      selector:
+        entity:
+          domain: camera
+          multiple: false
+    
+    notification_target:
+      name: Notification Target
+      description: >
+        Device or group to send notification to (e.g., notify.mobile_app_iphone, notify.all_mobile)
+      selector:
+        text:
+          type: text
+    
+    notification_title:
+      name: Notification Title
+      description: Title for the notification
+      default: "Someone is at the door!"
+      selector:
+        text:
+          type: text
+    
+    dashboard_view:
+      name: Dashboard View
+      description: Dashboard path to open when notification is clicked
+      default: "/dashboard-home/eingang"
+      selector:
+        text:
+          type: text
+    
+    door_opener_action:
+      name: Door Opener Action
+      description: Action to perform when "Open Door" button is pressed
+      default: []
+      selector:
+        action: {}
+    
+    door_button_title:
+      name: Door Button Title
+      description: Title for the door opener button
+      default: "Open Door"
+      selector:
+        text:
+          type: text
+    
+    notification_sound:
+      name: Notification Sound (iOS)
+      description: Sound file for iOS notifications
+      default: "US-EN-Morgan-Freeman-Someone-Is-Arriving.wav"
+      selector:
+        text:
+          type: text
+    
+    action_timeout:
+      name: Action Timeout
+      description: Time in seconds during which the notification actions are active
+      default: 60
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: seconds
+          mode: slider
+          step: 5
+
+  source_url: https://github.com/your-repo/HomeAssistant/blob/main/DoorbellCameraNotification/DoorbellCameraNotification.yaml
+
+variables:
+  trigger_entity: !input doorbell_trigger
+  image_file: >-
+    /local/doorbell/{{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}.jpg
+
+trigger:
+  - entity_id: !input doorbell_trigger
+    from: "off"
+    to: "on"
+    trigger: state
+
+condition: []
+
+action:
+  - alias: "Set up variables for the actions"
+    variables:
+      action_open_door: "{{ 'OPEN_DOOR_' ~ context.id }}"
+  
+  - alias: "Take camera snapshot"
+    data_template:
+      entity_id: !input doorbell_camera
+      filename: >-
+        /config/www/doorbell/{{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}.jpg
+    action: camera.snapshot
+  
+  - alias: "Send notification with actions"
+    action: !input notification_target
+    data:
+      title: !input notification_title
+      message: "{{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}"
+      data:
+        push:
+          sound: !input notification_sound
+        ttl: 0
+        priority: high
+        image: "{{ image_file }}"
+        clickAction: !input dashboard_view
+        actions:
+          - action: "{{ action_open_door }}"
+            title: !input door_button_title
+  
+  - alias: "Wait for door opener action"
+    wait_for_trigger:
+      - event_type: mobile_app_notification_action
+        event_data:
+          action: "{{ action_open_door }}"
+        trigger: event
+    timeout: !input action_timeout
+    continue_on_timeout: true
+  
+  - alias: "Execute door opener action if triggered"
+    if:
+      - condition: template
+        value_template: "{{ wait.trigger.event.data.action == action_open_door }}"
+    then: !input door_opener_action
+
+mode: single 

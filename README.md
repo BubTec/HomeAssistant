@@ -29,6 +29,11 @@ Automatically adjusts volume levels of Alexa Echo devices based on mode changes 
 
 [📖 Documentation](./SmartVolumeControl/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/SmartVolumeControl/SmartVolumeControl.yaml)
 
+### 🔔 Doorbell Camera Notification with Door Opener
+Sends actionable notifications with camera snapshots when someone rings the doorbell. Includes a remote door opener button and dashboard integration. Perfect for front door monitoring and remote access control.
+
+[📖 Documentation](./DoorbellCameraNotification/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/DoorbellCameraNotification/DoorbellCameraNotification.yaml)
+
 ---
 
 ## Features Overview
@@ -40,6 +45,7 @@ Automatically adjusts volume levels of Alexa Echo devices based on mode changes 
 | **Birthday Reminder** | Multi-person support, age calculation, music integration | Family reminders, celebration planning |
 | **Frost Warning** | Dual warning levels, multiple temp sources, real-time updates | Car windscreen, plant protection |
 | **Alexa Echo Volume Control** | Echo-specific volume control, ignore patterns, special device handling | Night mode automation, Echo device management |
+| **Doorbell Camera Notification** | Photo snapshots, actionable notifications, door opener, dashboard integration | Doorbell monitoring, remote access control |
 
 ## How to Use
 
