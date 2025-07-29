@@ -22,14 +22,13 @@ blueprint:
           domain: device_tracker
           multiple: false
     
-    notification_targets:
-      name: Notification Targets
+    notification_service:
+      name: Notification Service
       description: >
-        List of notification services to send frost warnings to
-        (e.g., notify.mobile_app_iphone, notify.alexa_media)
-      default: []
+        Notification service for your phone (e.g. notify.mobile_app_sm_g990b)
       selector:
-        target: {}
+        text: {}
+      default: "notify.mobile_app_sm_g990b"
     
     notification_title:
       name: Notification Title
@@ -94,6 +93,13 @@ blueprint:
             - label: "Sunday"
               value: "7"
           multiple: true
+    
+    log_no_frost:
+      name: Log No Frost
+      description: Show log message even when no frost is detected
+      default: false
+      selector:
+        boolean: {}
 
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/FrostWarning/FrostWarning.yaml
 
@@ -102,10 +108,11 @@ variables:
   lat: "{{ state_attr(location_device, 'latitude') | float }}"
   lng: "{{ state_attr(location_device, 'longitude') | float }}"
   location_name: "{{ state_attr(location_device, 'friendly_name') or location_device }}"
-  notification_targets: !input notification_targets
+  notification_service: !input notification_service
   notification_title: !input notification_title
   warning_message: !input warning_message
   frost_sensor: !input frost_sensor
+  log_no_frost: !input log_no_frost
   warning_time: !input warning_time
   warning_days_input: !input warning_days
   custom_warning_days_input: !input custom_warning_days
@@ -150,8 +157,7 @@ action:
             value_template: "{{ frost_level in [1, 2] }}"
         then:
           # Send frost warning to device
-          - service: notify.send_message
-            target: "{{ notification_targets }}"
+          - service: "{{ notification_service }}"
             data:
               title: "{{ notification_title }}"
               message: >-
@@ -170,13 +176,17 @@ action:
                 Frost-Level: {{ frost_level }}
                 Standort: {{ location_name }}
         else:
-          # Log no frost detected
-          - service: persistent_notification.create
-            data:
-              title: "Kein Frost"
-              message: >
-                Kein Frost erkannt am {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
-                Frost-Level: {{ frost_level }}
-                Standort: {{ location_name }}
+          # Log no frost detected (optional)
+          - if:
+              - condition: template
+                value_template: "{{ log_no_frost }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Kein Frost"
+                  message: >
+                    Kein Frost erkannt am {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+                    Frost-Level: {{ frost_level }}
+                    Standort: {{ location_name }}
 
 mode: single 
