@@ -1,0 +1,320 @@
+blueprint:
+  name: "Smart Welcome Greeter"
+  description: "Advanced welcome greeting system with multiple greeting types, notifications, and smart lockout functionality"
+  domain: automation
+  input:
+    motion_sensor:
+      name: "Main Entrance Motion Sensor"
+      description: "Motion sensor that detects movement at the main entrance"
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+    
+    slave_motion_sensor:
+      name: "Secondary Motion Sensor (Optional)"
+      description: "Optional secondary motion sensor (e.g., hallway) for enhanced detection logic"
+      default: {}
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+    
+    notification_service:
+      name: "Notification Service"
+      description: "Service to use for announcements (e.g., TTS, media player, or notify service)"
+      selector:
+        target:
+    
+    mailbox_sensor:
+      name: "Mailbox Sensor (Optional)"
+      description: "Binary sensor indicating if there's mail in the mailbox"
+      default: {}
+      selector:
+        entity:
+          domain: binary_sensor
+    
+    waste_yellow_today:
+      name: "Yellow Waste Collection Today (Optional)"
+      description: "Binary sensor indicating if yellow waste collection is today"
+      default: {}
+      selector:
+        entity:
+          domain: binary_sensor
+    
+    waste_black_today:
+      name: "Black Waste Collection Today (Optional)"
+      description: "Binary sensor indicating if black waste collection is today"  
+      default: {}
+      selector:
+        entity:
+          domain: binary_sensor
+    
+    open_windows_sensor:
+      name: "Open Windows Sensor (Optional)"
+      description: "Binary sensor indicating if windows are open"
+      default: {}
+      selector:
+        entity:
+          domain: binary_sensor
+    
+    open_windows_list:
+      name: "Open Windows List (Optional)"
+      description: "Sensor containing list of rooms with open windows"
+      default: {}
+      selector:
+        entity:
+          domain: sensor
+    
+    greeting_probability:
+      name: "Random Greeting Probability"
+      description: "Probability (0-100%) for random greetings when no slave motion detected"
+      default: 50
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    
+    lockout_duration:
+      name: "Lockout Duration"
+      description: "Time in minutes to prevent repeated greetings"
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: "minutes"
+    
+    slave_timeout:
+      name: "Secondary Sensor Timeout"
+      description: "Time in minutes for secondary motion sensor timeout"
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 10
+          unit_of_measurement: "minutes"
+    
+    max_daily_info:
+      name: "Maximum Daily Information Announcements"
+      description: "Maximum number of information announcements per day"
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 10
+
+variables:
+  # Helper variables for notifications
+  mailbox_entity: !input mailbox_sensor
+  waste_yellow_entity: !input waste_yellow_today
+  waste_black_entity: !input waste_black_today
+  windows_entity: !input open_windows_sensor
+  windows_list_entity: !input open_windows_list
+  slave_motion_entity: !input slave_motion_sensor
+  
+  # Greeting arrays
+  normal_greetings:
+    - "Welcome home!"
+    - "Hello!"
+    - "Nice to see you!"
+    - "Welcome back!"
+    - "Greetings!"
+    - "Hey, how are you?"
+    - "Nice to see you again!"
+    - "Hello, hello!"
+    - "Welcome to your smart home!"
+    - "Hi!"
+    - "Good to have you back!"
+    - "Hello friend!"
+    - "Hey, welcome home!"
+    - "Happy to see you!"
+    - "Hello sunshine!"
+    - "Hey superstar!"
+    - "Welcome to your castle!"
+    - "Home sweet home!"
+    - "Look who's here!"
+    - "The master returns!"
+    - "Your presence honors us!"
+  
+  funny_greetings:
+    - "Look who decided to show up!"
+    - "The legend has arrived!"
+    - "Warning: Awesome person detected!"
+    - "Let the confetti rain!"
+    - "Alert: VIP has entered the building!"
+    - "Ladies and gentlemen, the star is here!"
+    - "Red carpet is rolled out!"
+    - "The wait is over - you're here!"
+    - "Drumroll please..."
+    - "Breaking news: You're home!"
+    - "Mission 'Homecoming' successful!"
+    - "Home sweet home!"
+    - "Your throne awaits!"
+    - "The force is strong with this one!"
+    - "Welcome back to the command center!"
+  
+  movie_greetings:
+    - "May the force be with you!"
+    - "Live long and prosper!"
+    - "There's no place like home!"
+    - "Welcome to the Matrix!"
+    - "To infinity and... home!"
+    - "I'll be back... Oh wait, you're already here!"
+    - "Bond. Home Bond."
+    - "Houston, the resident has landed!"
+    - "Welcome to Jurassic Home!"
+    - "E.T. phone home... Oh, you're already here!"
+  
+  december_greetings:
+    - "Come in and warm up!"
+    - "Merry Christmas and welcome home!"
+    - "Ho ho ho, look who's here!"
+    - "Welcome to your winter wonderland!"
+    - "It's cold outside - but nice and warm in here!"
+    - "Deck the halls, you're home!"
+    - "Jingle bells, jingle bells!"
+    - "The Christmas elf is here!"
+    - "Welcome to your Christmas paradise!"
+    - "The best Christmas gift - you're home!"
+  
+  # Information notifications
+  mail_notifications:
+    - "You have mail in the mailbox"
+    - "There's mail waiting for you"
+    - "Check the mailbox, there's something for you"
+  
+  waste_yellow_notifications:
+    - "Don't forget to put out the yellow bag and paper"
+    - "Today is collection day for yellow bags and paper"
+    - "Time for yellow bags and paper"
+  
+  waste_black_notifications:
+    - "Don't forget to put out the black and brown bins"
+    - "Today is collection day for general and organic waste"
+    - "Time for general and organic waste"
+  
+  window_notifications:
+    - "Windows are still open in {rooms}"
+    - "Please close the windows in {rooms}"
+    - "The windows in {rooms} are still open"
+
+trigger:
+  - platform: state
+    entity_id: !input motion_sensor
+    to: 'on'
+
+condition:
+  - condition: template
+    value_template: >
+      {% set counter_today = states('counter.smart_greeter_daily_counter') | int(0) %}
+      {% set max_daily = (input_max_daily_info | int(3)) %}
+      {% set lockout_minutes = (input_lockout_duration | int(15)) %}
+      {% set last_triggered = state_attr('automation.' + this.entity_id.split('.')[1], 'last_triggered') %}
+      {% set lockout_expired = last_triggered == none or (now() - last_triggered).total_seconds() > (lockout_minutes * 60) %}
+      {{ lockout_expired and (counter_today < max_daily or not (
+        (mailbox_entity and is_state(mailbox_entity, 'on')) or
+        (waste_yellow_entity and is_state(waste_yellow_entity, 'on')) or
+        (waste_black_entity and is_state(waste_black_entity, 'on'))
+      )) }}
+
+action:
+  - choose:
+      # Check if we have information to announce
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: template
+                value_template: "{{ mailbox_entity and is_state(mailbox_entity, 'on') }}"
+              - condition: template
+                value_template: "{{ waste_yellow_entity and is_state(waste_yellow_entity, 'on') }}"
+              - condition: template
+                value_template: "{{ waste_black_entity and is_state(waste_black_entity, 'on') }}"
+              - condition: and
+                conditions:
+                  - condition: template
+                    value_template: "{{ windows_entity and is_state(windows_entity, 'on') }}"
+                  - condition: template
+                    value_template: "{{ slave_motion_entity and is_state(slave_motion_entity, 'on') }}"
+        sequence:
+          - variables:
+              info_texts: >
+                {% set texts = [] %}
+                {% if mailbox_entity and is_state(mailbox_entity, 'on') %}
+                  {% set texts = texts + [mail_notifications | random] %}
+                {% endif %}
+                {% if waste_yellow_entity and is_state(waste_yellow_entity, 'on') %}
+                  {% set texts = texts + [waste_yellow_notifications | random] %}
+                {% endif %}
+                {% if waste_black_entity and is_state(waste_black_entity, 'on') %}
+                  {% set texts = texts + [waste_black_notifications | random] %}
+                {% endif %}
+                {% if windows_entity and is_state(windows_entity, 'on') and slave_motion_entity and is_state(slave_motion_entity, 'on') %}
+                  {% set rooms = states(windows_list_entity) if windows_list_entity else "some rooms" %}
+                  {% set window_text = window_notifications | random %}
+                  {% set texts = texts + [window_text.replace('{rooms}', rooms)] %}
+                {% endif %}
+                {{ texts }}
+          
+          - choose:
+              # Single information announcement
+              - conditions:
+                  - condition: template
+                    value_template: "{{ info_texts | length == 1 }}"
+                sequence:
+                  - service: notify.persistent_notification
+                    data:
+                      message: "{{ info_texts[0] }}"
+                  - service: !input notification_service
+                    data:
+                      message: "{{ info_texts[0] }}"
+              
+              # Multiple information announcements
+              - conditions:
+                  - condition: template
+                    value_template: "{{ info_texts | length > 1 }}"
+                sequence:
+                  - variables:
+                      combined_message: "{{ info_texts | join(' and ') }}"
+                  - service: !input notification_service
+                    data:
+                      message: "{{ combined_message }}"
+          
+          # Increment daily counter
+          - service: counter.increment
+            target:
+              entity_id: counter.smart_greeter_daily_counter
+      
+      # Random greeting when no slave motion and random chance
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ not (slave_motion_entity and is_state(slave_motion_entity, 'on')) }}
+          - condition: template
+            value_template: >
+              {{ (range(0, 100) | random) < (input_greeting_probability | int(50)) }}
+        sequence:
+          - variables:
+              current_month: "{{ now().month }}"
+              current_hour: "{{ now().hour }}"
+              greeting_pool: >
+                {% set pool = normal_greetings %}
+                {% if range(0, 100) | random < 30 %}
+                  {% set pool = pool + funny_greetings %}
+                {% endif %}
+                {% if range(0, 100) | random < 20 %}
+                  {% set pool = pool + movie_greetings %}
+                {% endif %}
+                {% if current_month == 12 and current_hour >= 18 %}
+                  {% set pool = pool + december_greetings %}
+                {% endif %}
+                {{ pool }}
+              selected_greeting: "{{ greeting_pool | random }}"
+          
+          - service: !input notification_service
+            data:
+              message: "{{ selected_greeting }}"
+
+mode: single
+max_exceeded: silent 
