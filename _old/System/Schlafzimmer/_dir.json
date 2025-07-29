@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Schlafzimmer",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1730967275209,
+  "_id": "script.js.System.Schlafzimmer",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "_Telegram",
+    "expert": true
+  },
+  "type": "channel",
+  "_id": "script.js.System._Telegram",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  },
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1730967056710
+}

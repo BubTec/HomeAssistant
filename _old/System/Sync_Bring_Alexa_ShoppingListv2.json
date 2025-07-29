@@ -1,0 +1,103 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+const bringBaseId = 'bring.0.38325603-c2be-46e4-bf69-a30cd8b4116d';
+const alexa2BaseId = 'alexa2.0.Lists.SHOPPING_LIST';
+
+const bringAddToList = bringBaseId + '.saveItem';
+const alexaListId = alexa2BaseId + '.json';
+
+// Debug switch
+const printDebug = true;
+
+function debug(msg) {
+    if (printDebug) {
+        log(msg);
+    }
+}
+
+/**
+ * Safely get Alexa list
+ * @returns {Array|null} Alexa list or null if invalid
+ */
+function getAlexaList() {
+    try {
+        const alexaState = getState(alexaListId);
+        if (!alexaState || alexaState.val === null || alexaState.val === undefined) {
+            debug('Alexa list state is not available');
+            return null;
+        }
+
+        const list = JSON.parse(alexaState.val);
+        if (!Array.isArray(list)) {
+            debug('Alexa list is not an array');
+            return null;
+        }
+
+        return list;
+    } catch (err) {
+        debug('Error getting Alexa list: ' + err);
+        return null;
+    }
+}
+
+/**
+ * Capitalizes first letter of each word
+ * @param {string} entry - The string to process
+ * @returns {string} Processed string with capitalized words
+ */
+function formatEntry(entry='') {
+    if (typeof entry !== 'string') {
+        return '';
+    }
+    const words = entry.split(' ');
+    return words.map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+}
+
+/**
+ * Process Alexa shopping list entries
+ * Adds new items to Bring and removes them from Alexa
+ */
+function processAlexaList() {
+    const alexaList = getAlexaList();
+    if (!alexaList) return;
+    
+    if (alexaList.length > 0) {
+        debug('Processing ' + alexaList.length + ' items from Alexa list');
+    }
+
+    alexaList.forEach((item, index) => {
+        setTimeout(() => {
+            if (!item || !item.id || !item.value) return;
+            
+            if (!item.completed) {
+                const formattedValue = formatEntry(item.value);
+                setState(bringAddToList, formattedValue);
+                
+                setTimeout(() => {
+                    try {
+                        setState(`${alexa2BaseId}.items.${item.id}.#delete`, true);
+                    } catch (err) {
+                        // Ignore deletion errors
+                    }
+                }, 500);
+            }
+        }, index * 1000);
+    });
+}
+
+// Listen for changes in Alexa shopping list
+on({id: alexaListId, change: 'any'}, () => {
+    processAlexaList();
+});
+
+// Wait a bit before initial processing
+setTimeout(() => {
+    processAlexaList();
+}, 5000);

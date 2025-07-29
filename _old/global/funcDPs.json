@@ -1,0 +1,26 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+
+/**
+* @param {string} DPPath Path like 0_userdata.0.Rooms
+* @param {string} Description Name of the Object
+* @param {String} Type Type of the Object (String, Number, Boolean)
+*/
+function GlobalCreateDP(DPPath, Description, Type)
+{
+    if ( !existsState(DPPath)) 
+    {
+        createState(DPPath, false, {
+        read: true, 
+        write: true, 
+        name: Description, 
+        type: Type, 
+        def: false
+        });
+    }
+}

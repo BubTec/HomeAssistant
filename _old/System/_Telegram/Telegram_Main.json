@@ -1,0 +1,24 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+sendTo('telegram.0', {
+    text:   'Bitte wähle ein Button',
+    disable_notification: true,
+    reply_markup: {
+        keyboard: [
+            ['Menü Summer',''], 
+            ['Parkposition'],
+            ['Auto Klimatisieren AN'],
+            ['Auto Klimatisieren AUS'],
+            ['Fenster Offen'],
+            ['Jasmin Zuhause'],
+            ['Christoph Zuhause'],
+        ],
+        resize_keyboard:   true,
+        one_time_keyboard: false
+    }
+});

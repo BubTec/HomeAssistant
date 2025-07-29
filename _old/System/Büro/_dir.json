@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Büro",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1746196353702,
+  "_id": "script.js.System.Büro",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

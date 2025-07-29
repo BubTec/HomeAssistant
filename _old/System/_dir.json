@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "System",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1737044485248,
+  "_id": "script.js.System",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

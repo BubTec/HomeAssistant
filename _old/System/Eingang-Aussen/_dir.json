@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Eingang-Aussen",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1654794094834,
+  "_id": "script.js.System.Eingang-Aussen",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

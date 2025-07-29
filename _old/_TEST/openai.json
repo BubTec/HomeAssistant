@@ -1,0 +1,89 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+const ACCESS_TOKEN = "sk-key1-rKWvb2JBbWKM450qGOMTT3BlbkFJEzj5jduZecj5JCdYhj6K";
+
+const QUESTION_DP_ID = "0_userdata.0.GlobalVars.OpenAIQuestion";
+const ANSWER_DP_ID = "0_userdata.0.GlobalVars.OpenAIAnswer";
+const MODEL_ID = "gpt-3.5-turbo";
+
+const https = require('https');
+
+on({id: QUESTION_DP_ID, change: "ne"}, function (obj) {
+  // Get the current value of the question datapoint
+  const question = getState(QUESTION_DP_ID).val;
+  console.log(`Question: ${question}`);
+
+  // Function to make the request with retry logic
+  function makeRequest(retryCount = 3) {
+    // Create the HTTP POST options
+    const options = {
+      host: 'api.openai.com',
+      path: '/v1/chat/completions', // Aktualisierter API-Pfad für Chat Completions
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ACCESS_TOKEN}`
+      }
+    };
+
+    // Create the HTTP POST request
+    const req = https.request(options, (res) => {
+      console.log(`Status: ${res.statusCode}`);
+      console.log(`Headers: ${JSON.stringify(res.headers)}`);
+      res.setEncoding('utf8');
+      let responseData = '';
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
+      res.on('end', () => {
+        console.log(`Antwort: ${responseData}`);
+        const responseJson = JSON.parse(responseData);
+        if (res.statusCode === 429 && retryCount > 0) {
+          // Retry if rate limit is hit
+          console.warn('Rate limit hit. Retrying...');
+          setTimeout(() => makeRequest(retryCount - 1), 2000); // Wait 2 seconds before retrying
+        } else if (responseJson.error && responseJson.error.code === "insufficient_quota") {
+          // Handle insufficient quota error
+          console.error('Kontingent erschöpft. Bitte überprüfen Sie Ihren Plan und die Abrechnung.');
+          setState(ANSWER_DP_ID, "Kontingent erschöpft, bitte prüfen Sie Ihren Plan und die Abrechnung.");
+        } else if (responseJson.hasOwnProperty('choices')) {
+          const answer = responseJson.choices[0].message.content;
+          // Set the value of the answer datapoint to the first answer
+          setState(ANSWER_DP_ID, answer);
+        } else {
+          setState(ANSWER_DP_ID, "keine Antwort verfügbar");
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      console.error(`Problem mit der Anfrage: ${e.message}`);
+      if (retryCount > 0) {
+        console.warn('Fehler bei der Anfrage. Erneuter Versuch...');
+        setTimeout(() => makeRequest(retryCount - 1), 2000); // Wait 2 seconds before retrying
+      } else {
+        setState(ANSWER_DP_ID, "Fehler bei der Anfrage, keine weiteren Versuche verfügbar");
+      }
+    });
+
+    // Send the HTTP POST request
+    req.write(JSON.stringify({
+      "model": MODEL_ID,
+      "messages": [
+        {"role": "user", "content": question}
+      ],
+      "max_tokens": 256,
+      "temperature": 0.1
+    }));
+    req.end();
+  }
+
+  // Make the initial request
+  makeRequest();
+});

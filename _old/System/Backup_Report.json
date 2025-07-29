@@ -1,0 +1,452 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+   //@liv-in-sky 2020  3.2.21 - 12:00
+
+
+ 
+//HIER WIRD PFAD UND FILENAME DEFINIERT
+const path444 = "/htmlbackitup.html";                   //FIlenamen definieren
+const home ='vis.0'                                 //wo soll das file im iobroker-file-system liegen ? (oder z.b auch iqontrol.meta)
+let   braucheEinFile=false;                          // bei true wird ein file geschrieben
+let   braucheEinVISWidget=true;                     // bei true wird ein html-tabelle in einen dp geschrieben - siehe nächste zeile
+let dpVIS="0_userdata.0.TABELLEN.BackItUp"               //WICHTIG wenn braucheEinVISWidget auf true gesetzt !!  dp zusätzlich für VIS-HTML-Basic-Widget - Zeichenkette
+let dpRefresh="0_userdata.0.TABELLEN.BackItUp_Refresh"   //WICHTIG wenn braucheEinVISWidget auf true gesetzt !!  dp zusätzlich für VIS-HTML-Basic-Widget - Boolean
+let mySchedule=" */20 * * * * * ";                      
+let farbeNext="#79A2CA"
+let styleNext="i"                                     // style der geräte marken:  möglich b fett; i kursiv; span normal
+let farbeError="#FF0080"
+let styleError="span"                                  // style der geräte marken:  möglich b fett; i kursiv; span normal
+let symbolLink="🟩";                                                                    //  👎  💀 ❌  ⚪  ⚫ ⭕  🔴 🔵 🟡  🚧 👀
+let symbolFileView="📃";
+
+
+
+
+
+
+ 
+//---------------------------------------
+ 
+//HIER DIE SPALTEN ANZAHL DEFINIEREN - jede Spalte einen Wert - in diesem Beispiel sind es 5
+var htmlFeld1='BackItUp';       var Feld1lAlign="center";                     // überschrift Tabellen Spalte1 und  Ausrichtung left,right or center
+var htmlFeld2='Datum';        var Feld2lAlign="center";                      // überschrift Tabellen Spalte2 und  Ausrichtung left,right or center
+var htmlFeld3='Zeit';         var Feld3lAlign="center";                    // überschrift Tabellen Spalte3 und  Ausrichtung left,right or center
+var htmlFeld4='Type';        var Feld4lAlign="center";                    // überschrift Tabellen Spalte4 und  Ausrichtung left,right or center
+var htmlFeld5='Storage';        var Feld5lAlign="center";                    // überschrift Tabellen Spalte5 und  Ausrichtung left,right or center
+var htmlFeld6='Error';        var Feld6lAlign="center";                    // überschrift Tabellen Spalte5 und  Ausrichtung left,right or center
+ 
+ 
+//-----------------------------------
+ 
+ 
+ 
+//ÜBERSCHRIFT ÜBER TABELLE
+let   htmlUberschrift=false;                           // mit Überschrift über der tabelle
+let   htmlSignature=false;                              // anstatt der Überscghrift eine signature: - kleiner - anliegend
+const htmlFeldUeber='BackItUp';              // Überschrift und Signature
+const htmlFarbUber="white";                         // Farbe der Überschrift
+const htmlSchriftWeite="normal";                       // bold, normal - Fettschrift für Überschrift
+const htmlÜberFontGroesse="18px";                       // schriftgröße überschrift
+//MEHRERE TABELLEN NEBENEINANDER
+let   mehrfachTabelle=1;                              // bis zu 4 Tabellen werden nebeneinander geschrieben-  verkürzt das Ganze, dafür etwas breiter - MÖGLICH 1,2,3,oder 4 !!!
+const trennungsLinie="2";                             //extra trennungslinie bei mehrfachtabellen - evtl auf 0 stellen, wnn htmlRahmenLinien auf none sind
+const farbetrennungsLinie="white";
+const htmlFarbZweiteTabelle="white";                // Farbe der Überschrift bei jeder 2.ten Tabelle
+const htmlFarbTableColorUber="#BDBDBD";               // Überschrift in der tabelle - der einzelnen Spalten
+//ÜBERSCHRIFT SPALTEN
+const UeberSchriftHöhe="35";                          //Überschrift bekommt mehr Raum - darunter und darüber - Zellenhöhe
+const LinieUnterUeberschrift="3";                   // Linie nur unter Spaltenüberschrift - 
+const farbeLinieUnterUeberschrift="white";
+const groesseUeberschrift=16;
+const UeberschriftStyle="normal"                     // möglich "bold"
+//GANZE TABELLE
+let abstandZelle="4";
+let farbeUngeradeZeilen="#000000";                     //Farbe für ungerade Zeilenanzahl - Hintergrund der Spaltenüberschrift bleibt bei htmlFarbTableColorGradient1/2
+let farbeGeradeZeilen="#151515";                        //Farbe für gerade Zeilenanzahl - Hintergrund der Spaltenüberschrift bleibt bei htmlFarbTableColorGradient1/2
+let weite="1280";                                     //Weite der Tabelle
+let zentriert=true;                                   //ganze tabelle zentriert
+const backgroundAll="#000000";                        //Hintergrund für die ganze Seite - für direkten aufruf oder iqontrol sichtber - keine auswirkung auf vis-widget
+const htmlSchriftart="Ubuntu-Regular"//"Jura-DemiBold";//"Helvetica";
+const htmlSchriftgroesse="14px";
+//FELDER UND RAHMEN
+let   UeberschriftSpalten=true;                // ein- oder ausblenden der spatlen-überschriften
+const htmlFarbFelderschrift="#BDBDBD";                  // SchriftFarbe der Felder
+const htmlFarbFelderschrift2="#D8D8D8";                 // SchriftFarbe der Felder für jede 2te Tabelle
+const htmlFarbTableColorGradient1="grey";          //  Gradient - Hintergrund der Tabelle - Verlauffarbe
+const htmlFarbTableColorGradient2="red";          //  Gradient - Hintergrund der Tabelle - ist dieser Wert gleich Gradient1 gibt es keinen verlauf
+const htmlFarbTableBorderColor="grey";             // Farbe des Rahmen - is tdieser gleich den gradienten, sind die rahmen unsichtbar
+let htmlRahmenLinien="cols";                            // Format für Rahmen: MÖGLICH: "none" oder "all" oder "cols" oder "rows"
+const htmlSpalte1Weite="auto";                   //  Weite der ersten beiden  Spalten oder z.b. 115px
+// HIER NICHTS  ÄNDERN
+ 
+let borderHelpBottum;
+let borderHelpRight;
+let htmlcenterHelp;
+let htmlcenterHelp2;
+ 
+if(htmlRahmenLinien=="rows") {borderHelpBottum=1;borderHelpRight=0;}
+if(htmlRahmenLinien=="cols") {borderHelpBottum=0;borderHelpRight=1;}
+if(htmlRahmenLinien=="none") {borderHelpBottum=0;borderHelpRight=0;}
+if(htmlRahmenLinien=="all")  {borderHelpBottum=1;borderHelpRight=1;}
+zentriert ? htmlcenterHelp="auto" : htmlcenterHelp="left";
+zentriert ? htmlcenterHelp2="center" : htmlcenterHelp2="left";
+ 
+ 
+const htmlZentriert='<center>'
+const htmlStart=    "<!DOCTYPE html><html lang=\"de\"><head><title>Vorlage</title><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">"+
+                   "<style> * {  margin: 0;} body {background-color: "+backgroundAll+"; margin: 0 auto;  }"+
+                   " p {padding-top: 10px; padding-bottom: 10px; text-align: "+htmlcenterHelp2+"}"+
+                  // " div { margin: 0 auto;  margin-left: auto; margin-right: auto;}"+
+                   " td { padding:"+abstandZelle+"px; border:0px solid "+htmlFarbTableBorderColor+";  border-right:"+borderHelpRight+"px solid "+htmlFarbTableBorderColor+";border-bottom:"+borderHelpBottum+"px solid "+htmlFarbTableBorderColor+";}"+ 
+                   " table { width: "+weite+";  margin: 0 "+htmlcenterHelp+"; border:1px solid "+htmlFarbTableBorderColor+"; border-spacing=\""+abstandZelle+"0px\" ; }"+   // margin macht center
+                   "td:nth-child(1) {width: "+htmlSpalte1Weite+"}"+"td:nth-child(2) {width:"+htmlSpalte1Weite+"}"+
+                   ".blinkklasse {animation: blink 1s linear infinite;} @keyframes blink {  from {opacity: 0;} to {opacity: 1; }}"+
+                   " </style></head><body> <div>";
+                   
+//const htmlUeber=    "<p style=\"color:"+htmlFarbUber+"; font-family:"+htmlSchriftart+"; font-weight: bold\">"+htmlFeldUeber+"</p>";                    
+const htmlTabStyle= "<table bordercolor=\""+htmlFarbTableBorderColor+"\" border=\"2px\" cellspacing=\""+abstandZelle+"\" cellpadding=\""+abstandZelle+"\" width=\""+weite+"\" rules=\""+htmlRahmenLinien+"\" style=\"color:"+htmlFarbFelderschrift+";  font-size:"+htmlSchriftgroesse+
+                      "; font-family:"+htmlSchriftart+";background-image: linear-gradient(42deg,"+htmlFarbTableColorGradient2+","+htmlFarbTableColorGradient1+");\">";
+const htmlTabUeber1="<tr height=\""+UeberSchriftHöhe+"\" style=\"color:"+htmlFarbTableColorUber+"; font-size: "+groesseUeberschrift+"px; font-weight: "+UeberschriftStyle+" ;  border-bottom: "+LinieUnterUeberschrift+"px solid "+farbeLinieUnterUeberschrift+" \">";
+const htmlTabUeber3="</tr>";
+ 
+var htmlTabUeber2_1="<td width="+htmlSpalte1Weite+" align="+Feld1lAlign+" style=\"color:"+htmlFarbZweiteTabelle+"\">&ensp;"+htmlFeld1+"&ensp;</td><td width="+htmlSpalte1Weite+" align="+Feld2lAlign+" style=\"color:"+htmlFarbZweiteTabelle+"\">&ensp;"+htmlFeld3+
+                   "&ensp;</td><td  align="+Feld3lAlign+" style=\"color:"+htmlFarbZweiteTabelle+"\">&ensp;"+htmlFeld3+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbZweiteTabelle+"\">&ensp;"+htmlFeld4+
+                   "&ensp;</td><td align="+Feld5lAlign+" style=\"color:"+htmlFarbZweiteTabelle+"\">&ensp;"+htmlFeld5+"&ensp;</td><td align="+Feld6lAlign+" style=\"color:"+htmlFarbZweiteTabelle+"\">&ensp;"+htmlFeld6+"&ensp;</td>";
+ 
+//NICHTS ÄNDERN - abhängig von den oben definierten _Spalten - in diesem Beispiel sind es 5
+const buttonScript =  '<script> function setOnDblClickCustom( myvalue ) {var Self = this; var2 = myvalue; Self.servConn.setState(var2, true); console.log("backitup")} '+
+                               'function setOnDblClickCustom1( myvalue) {var Self = this; var2 = myvalue; Self.servConn.setState(var2, true); console.log("backitup ccu")} '+
+                             'function setOnFileView() {var Self = this; objID = \"'+dpRefresh+'\";  	Self.servConn.getStates(objID, (error, states) => {  console.log(states);  Self.servConn.setState(objID, !states[objID].val); }); console.log(\"setze File in View\")}'
+                     '</script>'
+                     //var2 = \"backitup.0.oneClick.iobroker\";  Self.servConn.setState(var2, true);
+ 
+ 
+                       //------------------------------------------------------
+ 
+ 
+setStateDelayed(dpRefresh,true,10000); 
+var htmlOut="";
+var mix;
+var counter;
+var val1; var val2; var val0; var val3; var val4; var val5; 
+var htmlTabUeber="";
+var showFile;
+let myArrCCU;
+let myArrIOB;
+let myArrJSON;
+var htmlTabUeber2;
+function writeHTML(){
+ 
+showFile=getState(dpRefresh).val;
+if(!showFile){
+htmlTabUeber2="<td width="+htmlSpalte1Weite+" align="+Feld1lAlign+">&ensp;"+htmlFeld1+"&ensp;</td><td width="+htmlSpalte1Weite+" align="+Feld2lAlign+">&ensp;"+htmlFeld2+"&ensp;</td><td  align="+Feld3lAlign+">&ensp;"+htmlFeld3+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+htmlFeld4+"&ensp;</td><td  align="+Feld5lAlign+">&ensp;"+htmlFeld5+"&ensp;<button style\=\"border:none\; background-color\:transparent\; color\:white\; font\-size\:1em\; text\-align:left\" value=\"toggle\" onclick=\"setOnFileView\()\">"+symbolFileView + "</button></td><td  align="+Feld6lAlign+">&ensp;"+htmlFeld6+"&ensp;</td>";
+} else {
+htmlTabUeber2="<td width="+htmlSpalte1Weite+" align="+Feld1lAlign+">&ensp;"+htmlFeld1+"&ensp;</td><td width="+htmlSpalte1Weite+" align="+Feld2lAlign+">&ensp;"+htmlFeld2+"&ensp;</td><td  align="+Feld3lAlign+">&ensp;"+htmlFeld3+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+"Size"+"&ensp;</td><td  align="+Feld5lAlign+">&ensp;"+"Filename"+"&ensp;<button style\=\"border:none\; background-color\:transparent\; color\:white\; font\-size\:1em\; text\-align:left\" value=\"toggle\" onclick=\"setOnFileView\()\">"+symbolFileView + "</button></td><td  align="+Feld6lAlign+">&ensp;"+htmlFeld6+"&ensp;</td>";
+ 
+}
+ 
+htmlOut="";
+ 
+counter=-1;
+htmlTabUeber="";
+switch (mehrfachTabelle) { 
+   case 1: htmlTabUeber=htmlTabUeber1+htmlTabUeber2+htmlTabUeber3;  break;
+   case 2: htmlTabUeber=htmlTabUeber1+htmlTabUeber2+htmlTabUeber2_1+htmlTabUeber3; break;
+   case 3: htmlTabUeber=htmlTabUeber1+htmlTabUeber2+htmlTabUeber2+htmlTabUeber2+htmlTabUeber3; break;
+   case 4: htmlTabUeber=htmlTabUeber1+htmlTabUeber2+htmlTabUeber2_1+htmlTabUeber2+htmlTabUeber2_1+htmlTabUeber3; break;
+}; 
+if (!UeberschriftSpalten) {htmlTabUeber=""}  
+ 
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+//---------hier kommt eure schleife rein counter++, tabelleBind() und tabelleFinish() müssen so integriert bleiben !!!------------------------------
+//---------alle valx werte müssen von euch bestimmt werden - val0,val1,val2,val3,val4!!!------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+var myJson=[];
+var myJson1=[];
+let anzahlInstanzen=0;
+myArrCCU=[];
+myArrIOB=[]
+myArrJSON=[]
+ 
+if (existsState('backitup.0.info.iobrokerNextTime')) {
+   
+   $('backitup.*.history.json').each(function(id, i) {//log(i.toString())   backitup.1.oneClick.iobroker
+      if ( existsState(id.replace("history.json","oneClick.iobroker"))) myArrIOB.push(id.replace("history.json","oneClick.iobroker"))
+      if ( existsState(id.replace("history.json","oneClick.ccu"))) myArrIOB.push(id.replace("history.json","oneClick.ccu")) 
+      myArrJSON.push(id)
+       anzahlInstanzen++;
+       let ida=id.split('.');
+       let myDP=JSON.parse(getState("backitup."+ida[1]+".history.json").val)
+       for(let iii=0;iii<myDP.length;iii++) {myDP[iii].myInstanz=ida[1]
+                                             myJson.push(myDP[iii]) ; 
+                                             //myJson[iii].myInstanz=ida[1];log(ida[1])
+                                             }
+          //log(myJson.toString())
+      //  myJson1=myJson1.concat(myJson)
+   });
+ 
+   myJson.sort(function(a, b){
+                               return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();      // return parseInt(new Date(b.date).getTime()) - parseInt(a.date);
+                              });
+ 
+let myObj=myJson
+//log(JSON.stringify(myObj))
+if (existsState('backitup.0.history.json')) {
+    //myJson=getState("backitup.0.history.json").val
+ 
+   if(myObj.length>0) {
+ 
+    
+     
+ 
+     myObj.forEach(function(obj) {
+   
+       
+          counter++;                                       // SEHR WICHTIG - MUSS IN JEDER SCHLEIFE INTEGRIERT SEIN
+          val5=obj.error
+          
+          val0="Bkp";
+          val1=obj.date.replace(/(.+) um.+/g,"$1")
+          val2=obj.date.replace(/.+um (.+) /g,"$1")
+          val3=obj.type          //+"<span title=\"I am hovering over the text\">xx</span>"
+        //  val4=obj.storage
+           val4="<span title=\""+obj.name+"\">"+obj.storage+"</span>"
+          let val4help; var val3help;
+          if(obj.hasOwnProperty("name")){ val4help=(obj.name).replace(/(.+)\_backupiobroker.+/,"$1...");val3help=obj.filesize
+                                      } else {val4help="upgrade BackItUp Adapter > 1.4.1"; val3help=" - ";}
+          if(showFile) {val4="<span title=\""+obj.name+"\">"+val4help+"</span>"; val3=val3help;}
+        if(val5 !="none") {
+              val0="<font color=\""+farbeError+"\"><"+styleError+">"+val0
+              val1="<font color=\""+farbeError+"\"><"+styleError+">"+val1                 
+              val2="<font color=\""+farbeError+"\"><"+styleError+">"+val2
+              val3="<font color=\""+farbeError+"\"><"+styleError+">"+val3
+              val4="<font color=\""+farbeError+"\"><"+styleError+">"+val4
+              val5="<font color=\""+farbeError+"\"><"+styleError+">"+val5
+          } 
+ 
+ 
+         
+         
+ 
+     tabelleBind(); //HIER NICHTS ÄNDERN : HIER WERDEN DIE DATEN DER SCHLEIFE ZUSAMMENGESETZT  - diese function muss als letztes in der eigenen schleife aufgerufen werden
+    
+   }); //Schleifen Ende - je nach schleifenart muss hier etwas geändert werden !!!!!!!!!
+   } else {log("Datenpunkt leer- Backup mit BackItUp starten ","warn")
+          counter++;                                       // SEHR WICHTIG - MUSS IN JEDER SCHLEIFE INTEGRIERT SEIN
+          val0="<font color=\"red\">Backup mit BackItUp starten";
+          val1=""
+          val2=""
+          val3=""
+          val4=""
+          val5="<font color=\"red\">Datenpunkt leer";
+          tabelleBind();}
+  } else {log("Datenpunkt nicht existent - check Version - Script BackItUp Tabelle ","warn");
+          counter++;                                       // SEHR WICHTIG - MUSS IN JEDER SCHLEIFE INTEGRIERT SEIN
+          val0="<font color=\"red\"> check Version > v1.4.0";
+          val1=""
+          val2=""
+          val3=""
+          val4=""
+          val5="<font color=\"red\">Datenpunkt nicht existent";
+          tabelleBind();}
+        let marker=false
+  for (let aaa=0;aaa<(anzahlInstanzen);aaa++){
+  counter++;                                       // SEHR WICHTIG - MUSS IN JEDER SCHLEIFE INTEGRIERT SEIN
+          val0="<font color=\""+farbeNext+"\"><"+styleNext+">Next";
+          val1="<font color=\""+farbeNext+"\"><"+styleNext+">"+(getState("backitup."+aaa+".info.iobrokerNextTime").val).replace(/(.+) um.+/g,"$1")
+          val2="<font color=\""+farbeNext+"\"><"+styleNext+">"+(getState("backitup."+aaa+".info.iobrokerNextTime").val).replace(/.+um (.+) /g,"$1")
+          val3="<font color=\""+farbeNext+"\"><"+styleNext+">"+"Instanz "+aaa;
+          let myDatapointIOB="backitup."+aaa+".oneClick.iobroker"
+          let myDatapointCCU="backitup."+aaa+".oneClick.ccu"
+          val4="<font color=\""+farbeNext+"\"><"+styleNext+">"+"run backup!&emsp; "+"<button style\=\"border:none\; background-color\:transparent\; color\:white\; font\-size\:1em\; text\-align:left\" value=\"toggle\" onclick=\"setOnDblClickCustom\(\'"+myDatapointIOB+"\')\">"+symbolLink + "</button>"+"<font color=\""+farbeNext+"\"><"+styleNext+">"+"run ccu!&emsp; "+"<button style\=\"border:none\; background-color\:transparent\; color\:white\; font\-size\:1em\; text\-align:left\" value=\"toggle\" onclick=\"setOnDblClickCustom1\(\'"+myDatapointCCU+"\')\">"+symbolLink + "</button>"
+ 
+        //  getState("backitup."+aaa+".oneClick.iobroker").val ? val5="<font color=\""+farbeNext+"\"><"+styleNext+">"+"<span id=\"blink\" class=\"blinkklasse\"> running</span>" : val5="";
+         // log("bin da"+val5+" ---- "+getState("backitup."+aaa+".oneClick.iobroker").val) 
+          getState("backitup."+aaa+".oneClick.ccu").val || getState("backitup."+aaa+".oneClick.iobroker").val  ? val5="<font color=\""+farbeNext+"\"><"+styleNext+">"+"<span id=\"blink\" class=\"blinkklasse\"> running</span>" : val5=""
+        
+         if(getState("backitup."+aaa+".oneClick.ccu").val || getState("backitup."+aaa+".oneClick.iobroker").val || marker ) val4="<font color=\""+farbeNext+"\"><"+styleNext+">"+"<span id=\"blink\" class=\"blinkklasse\"> "+symbolLink+"running</span>"
+           if(getState("backitup."+aaa+".oneClick.ccu").val || getState("backitup."+aaa+".oneClick.iobroker").val) marker=true
+          tabelleBind();      
+   }//anzahlInstanzen
+          } else {log("kein Backup eingerichtet ","warn");
+          counter++;                                       // SEHR WICHTIG - MUSS IN JEDER SCHLEIFE INTEGRIERT SEIN
+          val0="<font color=\"red\"> Keine Definition für nächstes Bckup";
+          val1=""
+          val2=""
+          val3=""
+          val4=""
+          val5="<font color=\"red\">BackItUp konfigurieren und Script restart";
+          tabelleBind();}  
+  
+//-------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------Ende der schleife------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+      tabelleFinish(); // AB HIER NICHTS ÄNDERN - tabelle fertigstellen
+     
+} // function ende
+ 
+//MAIN:
+ 
+//schedule(mySchedule,  function () {
+//  writeHTML();
+//  if (braucheEinFile) {writeFile(home, path444 ,htmlOut, function (error) { /* log('file written');*/  });}
+// });
+ 
+ writeHTML();
+ 
+   				 function tabelleBind(){
+     //HIER WERDEN DIE DATEN DER SCHLEIFE ZUSAMMENGESETZT - hat man oben 5 Felder definiert, braucht man hier 5 Werte
+   
+       switch (mehrfachTabelle) {  
+        case 1:  if(counter%2==0) {  htmlOut=htmlOut+"<tr bgcolor=\""+farbeGeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td></tr>"; break; } else
+                                  {  htmlOut=htmlOut+"<tr bgcolor=\""+farbeUngeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td></tr>"; break;}
+       
+        case 2:  if(counter%4==0){
+                if(counter%2==0)  {htmlOut = htmlOut+"<tr bgcolor=\""+farbeGeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>"; } 
+                              else {htmlOut = htmlOut+"<td align="+Feld1lAlign+"  style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td  align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td></tr>";} break;
+                   }else{
+                 if(counter%2==0)  {htmlOut = htmlOut+"<tr bgcolor=\""+farbeUngeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>"; } 
+                              else {htmlOut = htmlOut+"<td align="+Feld1lAlign+"  style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td  align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td></tr>";} break;}
+                                   
+        case 3:  if(counter%2==0)   {
+                  if(counter%3==0 )  {htmlOut = htmlOut+"<tr bgcolor=\""+farbeGeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>"; } 
+                              else { if(counter%3==1 )  { htmlOut = htmlOut+"<td align="+Feld1lAlign+"  style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td  align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"; color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td>";} 
+                                               else    {htmlOut = htmlOut+"<td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td></tr>";}
+                                         } break;}else{
+                 if(counter%3==0 )  {htmlOut = htmlOut+"<tr bgcolor=\""+farbeUngeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>"; } 
+                              else { if(counter%3==1 )  { htmlOut = htmlOut+"<td align="+Feld1lAlign+"  style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td  align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"; color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td>";} 
+                                               else    {htmlOut = htmlOut+"<td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td></tr>";}
+                                         } break;}
+ 
+ 
+        case 4:   if(counter%8==0)   {
+                  if(counter%4==0)  {htmlOut = htmlOut+"<tr bgcolor=\""+farbeGeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val3+"&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>"; } 
+                                  else {if(counter%4==1 )  { htmlOut = htmlOut+"<td  align="+Feld1lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td  align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\"border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"; color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td>";} 
+                                               else    {if(counter%4==3)  { htmlOut= htmlOut+"<td align="+Feld1lAlign+"  style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+" >&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\" color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td></tr>";} 
+                                                                 else    {htmlOut = htmlOut+"<td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td>&ensp;"+val1+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val4+"&ensp;</td><td  style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>";}}
+                                         } break;}else{
+                  if(counter%4==0)  {htmlOut = htmlOut+"<tr bgcolor=\""+farbeUngeradeZeilen+"\"><td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val3+"&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>"; } 
+                                  else {if(counter%4==1 )  { htmlOut = htmlOut+"<td  align="+Feld1lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td  align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\"  border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"; color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td>";} 
+                                               else    {if(counter%4==3)  { htmlOut= htmlOut+"<td align="+Feld1lAlign+"  style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val0+"&ensp;</td><td  align="+Feld2lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val1+"&ensp;</td><td align="+Feld3lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val2+"&ensp;</td><td  align="+Feld4lAlign+" style=\"color:"+htmlFarbFelderschrift2+"\">&ensp;"+val3+"&ensp;</td><td align="+Feld5lAlign+">&ensp;"+val4+"&ensp;</td><td align="+Feld6lAlign+" style=\" color:"+htmlFarbFelderschrift2+"\">&ensp;"+val5+"&ensp;</td></tr>";} 
+                                                                 else    {htmlOut = htmlOut+"<td align="+Feld1lAlign+" >&ensp;"+val0+"&ensp;</td><td>&ensp;"+val1+"&ensp;</td><td align="+Feld2lAlign+">&ensp;"+val2+"&ensp;</td><td align="+Feld3lAlign+">&ensp;"+val3+"&ensp;</td><td align="+Feld4lAlign+">&ensp;"+val4+"&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+";\" align="+Feld6lAlign+">&ensp;"+val5+"&ensp;</td>";}}
+                                         } break;}                       
+ 
+     } //switch ende
+ 
+ 
+ 
+}
+ 
+function tabelleFinish() {
+ 
+      // tabelle fertigstellen
+switch (mehrfachTabelle) {  
+       case 1:    break;
+ 
+       case 2:    
+                  if(counter%2==0)  htmlOut = htmlOut.replace(/<\/td>$/, '</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td></tr>');
+                
+                  break;
+ 
+       case 3:   if(counter%3==2)  htmlOut = htmlOut.replace(/<\/td>$/, "</td></tr>");
+                 if(counter%3==1)  htmlOut = htmlOut.replace(/<\/td>$/, "</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td></tr>");        
+                 if(counter%3==0)      htmlOut = htmlOut.replace(/<\/td>$/, "</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td  style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"\">&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td></tr>");
+               
+                  break;
+       case 4:   if(counter%4==3)  htmlOut = htmlOut.replace(/<\/td>$/, "</td></tr>");
+                 if(counter%4==2)  htmlOut = htmlOut.replace(/<\/td>$/, "</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td></tr>");
+                 if(counter%4==1)  htmlOut = htmlOut.replace(/<\/td>$/, "</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"\">&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td></tr>");    
+                 if(counter%4==0)  htmlOut = htmlOut.replace(/<\/td>$/, "</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"\">&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td style=\" border-right: "+trennungsLinie+"px solid "+farbetrennungsLinie+"\">&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td><td>&ensp;</td></tr>");      
+                 break; }
+     
+                    var htmlUeber=    "<p style=\"color:"+htmlFarbUber+"; font-family:"+htmlSchriftart+"; font-size: "+htmlÜberFontGroesse+"; font-weight:"+htmlSchriftWeite+ "\">"+htmlFeldUeber+"&ensp;&ensp;Last Update: "+formatDate(getDateObject((parseFloat((new Date().getTime())))), "SS:mm:ss");+"</p>"; 
+       var htmlUnter= "<div  style=\"color:"+htmlFarbUber+"; font-family:"+htmlSchriftart+"; font-size: 70%; text-align: right;\" >"+htmlFeldUeber+"&ensp;&ensp;Last Update: "+formatDate(getDateObject((parseFloat((new Date().getTime())))), "SS:mm:ss");+"</div>"
+        
+        if (!htmlSignature) htmlUnter="";
+          //Ausgabe über VIS html widget - tabelle in datenpunkt schreiben - html tabelle ohne html header und body
+           var htmlOutVIS="";
+         //  htmlUberschrift ? htmlOutVIS=htmlUeber+htmlTabStyle+htmlTabUeber+htmlOut+"</table>" : htmlOutVIS=htmlTabStyle+htmlTabUeber+htmlOut+"</table>";
+            if (htmlUberschrift) 
+                { zentriert ? htmlOutVIS=htmlZentriert+htmlUeber+htmlTabStyle+htmlTabUeber+htmlOut+"</table>"+htmlUnter+buttonScript : htmlOutVIS=htmlUeber+htmlTabStyle+htmlTabUeber+htmlOut+"</table>"+htmlUnter+buttonScript ;
+ 
+              } else {
+               zentriert ?  htmlOutVIS=htmlZentriert+htmlTabStyle+htmlTabUeber+htmlOut+"</table>"+htmlUnter+buttonScript :  htmlOutVIS=htmlTabStyle+htmlTabUeber+htmlOut+"</table>"+htmlUnter+buttonScript;
+ 
+                 }
+ 
+// log("bin raus aus tabelleBind");
+           if (braucheEinVISWidget) setState(dpVIS, htmlOutVIS );
+ 
+ var htmlUnter= "<div  style=\"color:"+htmlFarbUber+"; font-family:"+htmlSchriftart+"; font-size: 80%;  text-align: center; \" >"+htmlFeldUeber+"&ensp;&ensp;Last Update: "+formatDate(getDateObject((parseFloat((new Date().getTime())))), "SS:mm:ss");+"</div>"
+ 
+ if (!htmlSignature) htmlUnter="";
+var htmlEnd="</table>"+htmlUnter+"</div></body>";
+ //mit oder ohne überschrift - zentriert oder links
+htmlUberschrift ? htmlOut=htmlStart+htmlUeber+htmlTabStyle+htmlTabUeber+htmlOut+htmlEnd : htmlOut=htmlStart+htmlTabStyle+htmlTabUeber+htmlOut+htmlEnd;
+ //log(htmlOut);
+ 
+if (braucheEinFile) {writeFile(home, path ,htmlOut, function (error) { /* log('file written');*/  });}
+ 
+}
+ 
+       on({id:  myArrJSON, change: "ne"}, function (obj) { 
+       //log(getState(dpANLEGEN).val+"----refresh");
+     
+       var timeout2 = setTimeout(function () {
+         
+   writeHTML();
+  
+    }, 1500);
+      // }
+   
+   }); 
+ 
+ 
+on({id: myArrIOB, change: "ne"}, function (obj) { 
+       //log(getState(dpANLEGEN).val+"----refresh");
+      
+       var timeout22 = setTimeout(function () {
+        // log("gechanged")
+   writeHTML(); 
+   
+   }, 2500);
+      // }
+   
+   });
+ 
+    on({id: myArrCCU, change: "ne"}, function (obj) { 
+       //log(getState(dpANLEGEN).val+"----refresh");
+      
+       var timeout2 = setTimeout(function () {
+         
+   writeHTML(); 
+   
+   }, 2500);
+      // }
+   
+   });
+ 
+ 
+on({id: dpRefresh, change: "any"}, function (obj) { 
+      
+      
+       var timeout2 = setTimeout(function () {
+         
+   writeHTML(); 
+   
+   }, 2500);
+      // }
+   
+   });
+ 
+ 
+ 
+ 
+ 

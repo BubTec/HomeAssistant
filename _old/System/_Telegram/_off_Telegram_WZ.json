@@ -1,0 +1,25 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+sendTo('telegram.0', {
+    text:   'Wohnzimmer',
+    disable_notification: true,
+    reply_markup: {
+        keyboard: [
+            ['Wohnzimmer Gemütlich'],
+            ['Wohnzimmer Spots 1 0','Wohnzimmer Spots 1 10','Wohnzimmer Spots 1 100'],
+            ['Wohnzimmer Spots 2 0','Wohnzimmer Spots 2 10','Wohnzimmer Spots 2 100'],
+            ['Wohnzimmer Spots 3 0','Wohnzimmer Spots 3 10','Wohnzimmer Spots 3 100'],
+            ['Wohnzimmer Spots 4 0','Wohnzimmer Spots 4 10','Wohnzimmer Spots 4 100'],
+            ['Übersicht'],
+            ['', ''],
+        ],
+        resize_keyboard:   true,
+        one_time_keyboard: false
+    }
+});

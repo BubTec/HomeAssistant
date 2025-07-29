@@ -1,0 +1,130 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+const ipTV = '192.168.1.94';
+const power = '0_userdata.0.Rooms.Schlafzimmer.Sharp_TV.Power';
+const mute = '0_userdata.0.Rooms.Schlafzimmer.Sharp_TV.Mute';
+const volume = '0_userdata.0.Rooms.Schlafzimmer.Sharp_TV.Volumen';
+ 
+GlobalCreateDP(power);
+GlobalCreateDP(mute);
+GlobalCreateDP(volume);
+
+let Aquos = require("sharp-aquos").Aquos;
+ 
+let gw = new Aquos(ipTV, 10002, '', '');
+let con = false;
+let powerAbfrage = false;
+let muteAbfrage = false;
+let volumeAbfrage = false;
+ 
+gw.connect(function(err) {
+  if (err) {
+    console.log(err);
+  } else {
+    con = true;
+  }
+});
+ 
+on({id: power},
+    (obj)  => {
+        if(con){
+            if (powerAbfrage === false){
+                gw.power(obj.state.val, (err) => {
+                    if (err) {
+                        console.log(err);
+                    }
+                })
+            } else {
+                powerAbfrage = false;
+            }
+            
+        } else {
+            console.log('Keine Verbindung zum TV');
+        }
+    })
+ 
+on({id: mute},
+    (obj) => {
+        if (con) {
+            if (muteAbfrage === false) {
+                gw.mute(obj.state.val, (err) => {
+                    if (err) {
+                        console.log(err);
+                    }
+                })
+            } else {
+                muteAbfrage = false;
+            }
+        } else {
+            console.log('Keine Verbindung zum TV')
+        }
+    })
+ 
+on({id: volume}, 
+    (obj) => {
+        console.log('Lautstärke setzen: ' + obj.state.val);
+        if (con) {
+            if (volumeAbfrage === false) {
+                gw.volume(obj.state.val, (err) => {
+                    if(err) {
+                        console.log(err);
+                    }
+                })
+            } else {
+                volumeAbfrage = false;
+            }
+            
+        } else {
+            console.log('Keine Verbindung zum TV')
+        }
+        
+    })
+ 
+//Alle 15 Sekunden den Status abfragen
+schedule('*/15 * * * * *', () => {
+    gw.power( null, (err, data) => {
+        if (err) {
+            console.log(err);
+        }
+        const regex = new RegExp('1');
+        let res = regex.test(data);
+        console.log('Power: ' + data);
+        powerAbfrage = true;
+        
+        setState(power, res);
+    
+ 
+    gw.mute( null, (err, data) => {
+        if (err) {
+            console.log(err);
+        }
+        const regex1 = new RegExp('1');
+        let res = regex1.test(data);
+        console.log('Check mute: ' + res);
+        console.log('Mute: ' + data);
+        muteAbfrage = true;
+        
+        setState(mute, res);
+    
+ 
+    gw.volume( null, (err, data) => {
+        if (err) {
+            console.log(err);
+        }
+        console.log('Volume: ' + data);
+        volumeAbfrage = true;
+        setState(volume, data);
+    })
+    })
+    })
+})
+ 
+ 
+onStop( () => {
+  gw.close();    
+})

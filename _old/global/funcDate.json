@@ -1,0 +1,127 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+/**
+ * ---------------------------------------------------------------------------------------------
+ * Converts a given date into a string by replacing "YYYY, MM, DD, hh, mm, ss" in given format.
+ * Optional: will replace like DD-MM-YYYY with "Today"/"Yesterday" if within # (hash).
+ *           So, '#DD.MM.YY#, hh:mm:ss' will become 'Today, 08:25:13'.
+ *           Use optional parameters [todayString] and [yesterdayString] accordingly to replace
+ *           with your terms you want to use for "Today" and "Yesterday".
+ * ---------------------------------------------------------------------------------------------
+ * Version: 1.1
+ * Author: Mic
+ * Source: https://forum.iobroker.net/topic/24179/
+ * ---------------------------------------------------------------------------------------------
+ * @param {object|number}  inputDate            The date to convert. Accepts both a date object (like: "new Date()") 
+ *                                              or a timestamp number like 1582826332588 (so like what "Date.now()" returns)
+ * @param {string}         format               String of which "YYYY, MM, DD, hh, mm, ss" will be replaced accordingls.
+ *                                              Examples: 'YYYY-MM-DD hh:mm:ss', 'DD.MM.YY, hh:mm:ss', 'DD.MM.YY um hh:mm:ss Uhr'
+ * @param {string}         [todayString]        Optional. String for "Today". Default is "Heute".
+ * @param {string}         [yesterdayString]    Optional. String for "Yesterday". Default is "Gestern".
+ * @return {string}                             The format containing the date values for YYYY, MM, DD, hh, mm, ss
+ */
+function GlobalDateToString(inputDate, format, todayString='Heute', yesterdayString='Yesterday') {
+ 
+    let strResult = format;
+ 
+    // Convert inputDate to date. This is to accept timestamps, which will be converted to a date object as well
+    let dateGiven = new Date(inputDate);
+ 
+ 
+    // Replace today's date and yesterday's date
+    let hashkMatch = strResult.match(/#(.*)#/);
+    if (hashkMatch != null) {
+        let todayYesterdayTxt = todayYesterday(dateGiven);
+        if(todayYesterdayTxt != '') {
+            // We have either today or yesterday, so set according txt
+            strResult = strResult.replace('#'+hashkMatch[1]+'#', todayYesterdayTxt);
+        } else {
+            // Neither today nor yesterday, so remove all ##
+            strResult = strResult.replace(/#/g, '');
+        }        
+    }
+ 
+    // Replace YYYY, YY, MM, DD, hh, mm, ss accordingly with actual date/times
+    strResult = strResult.replace(/Y{4}/g, zeroPad(dateGiven.getFullYear(), 4));
+    strResult = strResult.replace(/Y{2}/g, zeroPad(dateGiven.getFullYear(), 2));
+    strResult = strResult.replace(/M{2}/g, zeroPad((dateGiven.getMonth() + 1), 2));
+    strResult = strResult.replace(/D{2}/g, zeroPad(dateGiven.getDate(), 2));
+    strResult = strResult.replace(/h{2}/g, zeroPad(dateGiven.getHours(), 2));
+    strResult = strResult.replace(/m{2}/g, zeroPad(dateGiven.getMinutes(), 2));
+    strResult = strResult.replace(/s{2}/g, zeroPad(dateGiven.getSeconds(), 2));
+ 
+    return strResult;
+ 
+ 
+ 
+    /**
+     * Add leading numbers -  see https://forum.iobroker.net/topic/24179/
+     */
+    function zeroPad(num, places) {
+        let zero = places - num.toString().length + 1;
+        return Array(+(zero > 0 && zero)).join('0') + num;        
+    } 
+ 
+    /**
+     * @param {object} dateGiven   Date object
+     * @return                     'Heute', if today, 'Gestern' if yesterday, empty string if neither today nor yesterday
+     */
+    function todayYesterday(dateGiven) {
+        const today = new Date();
+        const yesterday = new Date(); 
+        yesterday.setDate(today.getDate() - 1)
+        if (dateGiven.toLocaleDateString() == today.toLocaleDateString()) {
+            return todayString;
+        } else if (dateGiven.toLocaleDateString() == yesterday.toLocaleDateString()) {
+            return yesterdayString;
+        } else {
+            return '';
+        }
+    }
+ 
+}
+/**
+ * Abfrage, ob ein Datum innerhalb eines Bereichs ist.
+ * Angeregt von: https://forum.iobroker.net/topic/2289/
+ * Zum Aufruf ist das ISO-Datumsformat JJJJ-MM-TT erforderlich, z.B. 2019-12-24.
+ * Gepostet unter: https://forum.iobroker.net/post/256400
+ * @param {string}   strDateToCheck       Das zu prüfende Datum. Falls aktuelles Datum geprüft werden soll: 'now' eingeben.
+ * @param {string}   strDateFirst         Datum: Zeitraum erster Tag.
+ * @param {string}   strDateLast          Datum: Zeitraum letzter Tag.
+ */
+function GlobalIsDateInRange(strDateToCheck, strDateFirst, strDateLast) {
+    // Prepare the date we want to check. Either current date, or provided date in variable strDateToCheck
+    let dtToCheck;
+    if (strDateToCheck == 'now') {
+        dtToCheck = new Date();
+    } else {
+         dtToCheck = new Date(strDateToCheck);
+    }
+    dtToCheck.setHours(0, 0, 0, 0); // Same basis for hours, minutes etc. as for all dates
+    let dtFirst = new Date(strDateFirst);
+    dtFirst.setHours(0, 0, 0, 0);
+    let dtLast = new Date(strDateLast);
+    dtLast.setHours(0, 0, 0, 0);
+    let isInRange = false;
+    if ( (dtLast >= dtFirst) && (dtToCheck >= dtFirst) && (dtToCheck <= dtLast) )  {
+        isInRange = true;
+    }
+    return isInRange;
+}
+/**
+ * Add certain number of days to a given date/time.
+ * @param {object}    dateInp      Date created with "new Date()". If you want the current date, use "new Date()"
+ * @param {number}    numberOfDays   Number of days to be added to the given date.
+ * @return {object}   New date with the days added
+ */
+function GlobalAddDays(dateInp, numberOfDays) {
+    return new Date(dateInp.getTime() + (numberOfDays * 24 * 60 * 60 * 1000));
+}
+
+ 
+ 

@@ -1,6 +1,3 @@
-# Ignore _old directory
-_old/
-
 # Common IDE and editor files
 .vscode/
 .idea/

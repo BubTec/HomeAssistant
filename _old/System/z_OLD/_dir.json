@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "z_OLD",
+    "expert": true
+  },
+  "type": "channel",
+  "_id": "script.js.System.z_OLD",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  },
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1643797653102
+}

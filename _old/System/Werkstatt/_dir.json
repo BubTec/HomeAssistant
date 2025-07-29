@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Werkstatt",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1664702345060,
+  "_id": "script.js.System.Werkstatt",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

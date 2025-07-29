@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Flur-Unten",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.admin.0",
+  "user": "system.user.admin",
+  "ts": 1642700808927,
+  "_id": "script.js.System.Flur-Unten",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

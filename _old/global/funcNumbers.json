@@ -1,0 +1,135 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+/**
+ * Prüft ob Variableninhalt eine Zahl ist.
+ * isNumber ('123'); // true  
+ * isNumber ('123abc'); // false  
+ * isNumber (5); // true  
+ * isNumber ('q345'); // false
+ * isNumber(null); // false
+ * isNumber(undefined); // false
+ * isNumber(false); // false
+ * isNumber('   '); // false
+ * @source https://stackoverflow.com/questions/1303646/check-whether-variable-is-number-or-string-in-javascript
+ * @param {any} n     Variable, die zu prüfen ist auf Zahl
+ * @return {boolean}  true falls Zahl, false falls nicht.
+  */
+function GlobalisNumber(n) 
+{ 
+    return /^-?[\d.]+(?:e-?\d+)?$/.test(n); 
+}
+/**
+ * Fügt Vornullen zu einer Zahl hinzu, macht also z.B. aus 7 eine "007". 
+ * Akzeptiert sowohl Datentyp number und string als Eingabe.
+ * zeroPad(5, 4);    // wird "0005"
+ * zeroPad('5', 6);  // wird "000005"
+ * zeroPad(1234, 2); // wird "1234" :)
+ * @param  {string|number}  num     Zahl, die Vornull(en) bekommen soll
+ * @param  {number}         places  Anzahl Stellen.
+ * @return {string}         Zahl mit Vornullen wie gewünscht.
+ */
+function GlobalzeroPad(num, places) 
+{
+    let zero = places - num.toString().length + 1;
+    return Array(+(zero > 0 && zero)).join("0") + num;        
+} 
+/**
+ * Add certain number of minutes to a given date/time.
+ * @param {object}    dateInp      Date created with "new Date()". If you want the current date, use "new Date()"
+ * @param {number}    minutesInp   Number of minutes to be added to the given date.
+ * @return {object}   New date with the minutes added
+ */
+function GlobalDateAddMinutes(dateInp, minutesInp) {
+    return new Date(dateInp.getTime() + (minutesInp * 60000));
+}
+/**
+* @param {string | number | any[]} zahl
+*/
+function GlobalZahlwort(zahl) {
+  zahl = zahl.toString(); 
+  var sonderzahlen = [];
+  sonderzahlen[11] = 'elf';
+  sonderzahlen[12] = 'zwölf';
+  sonderzahlen[16] = 'sechzehn';
+  sonderzahlen[17] = 'siebzehn';
+ 
+  var zahlen = [];
+  zahlen[1] = 'ein';
+  zahlen[2] = 'zwei';
+  zahlen[3] = 'drei';
+  zahlen[4] = 'vier';
+  zahlen[5] = 'fünf';
+  zahlen[6] = 'sechs';
+  zahlen[7] = 'sieben';
+  zahlen[8] = 'acht';
+  zahlen[9] = 'neun';
+  zahlen[10] = 'zehn';
+  zahlen[20] = 'zwanzig';
+  zahlen[30] = 'dreißig';
+  zahlen[40] = 'vierzig';
+  zahlen[50] = 'fünfzig';
+  zahlen[60] = 'sechzig';
+  zahlen[70] = 'siebzig';
+  zahlen[80] = 'achtzig';
+  zahlen[90] = 'neunzig';
+   
+  var einheiten = ['','tausend','Million','Milliarde','Billion']
+  var trennschritte = 1000;
+  var zahlinworten = "";
+ 
+  if(zahl==0) 
+    zahlinworten = "null";
+  for(var i=0;i<Math.ceil(zahl.length / 3);i++) {
+    if(i>einheiten.length-1)
+      return "Zahl nicht unterstützt";
+    if(i==0)
+      zahlenblock = zahl % trennschritte;
+    else
+      zahlenblock = ((zahl % trennschritte) - (zahl % (trennschritte / 1000))) / (trennschritte / 1000);
+    einer = zahlenblock % 10;
+    zehn = zahlenblock % 100;
+    hunderter = (zahlenblock - (zahlenblock % 100)) / 100;
+    einheitenendung = einheiten[i].substr(einheiten[i].length-1,1);
+ 
+    if(zahlenblock>0) {
+      if(zahlenblock>1 && einheitenendung == "n")
+        zahlinworten = " " + einheiten[i] + "en " + zahlinworten;
+      else if(zahlenblock>1 && einheitenendung == "e")
+        zahlinworten = " " + einheiten[i] + "n " + zahlinworten;
+      else if(zahlenblock>0 && i==1)
+        zahlinworten = einheiten[i] + zahlinworten;
+      else
+        zahlinworten = "" + einheiten[i] + "" + zahlinworten;
+    }
+    
+    if(zehn>0) {
+      if(zehn==1 && i==0)
+        zahlinworten = "eins" + zahlinworten;
+      else if(zehn==1 && i==1)
+        zahlinworten = "ein" + zahlinworten;
+      else if(zehn==1 && i>1)
+        zahlinworten = "eine" + zahlinworten;
+      else if(sonderzahlen[zehn])
+        zahlinworten = sonderzahlen[zehn] + zahlinworten;
+      else {
+        if(zehn>9)
+          zahlinworten = zahlen[zehn-einer] + zahlinworten;
+        if(zehn>20 && einer>0)
+          zahlinworten = "und" + zahlinworten;
+        if(einer>0)
+          zahlinworten = zahlen[einer] + zahlinworten;
+      }
+    }
+ 
+    if(hunderter>0)
+      zahlinworten = zahlen[hunderter] + "hundert" + zahlinworten;
+ 
+    trennschritte *= 1000;
+  }
+  return zahlinworten;
+}

@@ -1,0 +1,183 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+// Configuration of relevant data points
+const CatShitWarning = 4;
+const CleaningTool = 'zigbee.0.00158d000277b2d8.opened';
+const CatDoor = 'zigbee.0.a4c1383c52d4f4d4.occupancy';
+const CatToiletCounter = '0_userdata.0.Rooms.Badezimmer.CatToiletCounter';
+const CatToiletCounterTotal = '0_userdata.0.Rooms.Badezimmer.CatToiletCounterTotal';
+const CatToiletCounterClean = '0_userdata.0.Rooms.Badezimmer.CatToiletCounterClean';
+const CleanCatToilet = '0_userdata.0.Rooms.Badezimmer.CleanCatToilet';
+const CleaningToolAlert = '0_userdata.0.GlobalVars.CleaningToolAlert';
+
+// Debug variable for timing adjustments during testing
+const debugFactor = 1; // Set to 1 for normal times, > 1 for shortened test times
+//const debugFactor = 100; // Set to 1 for normal times, > 1 for shortened test times
+
+// Time constants (in milliseconds)
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+
+
+// Time specifications in minutes or hours
+const CLEANING_COMPLETION_TIME = 45 * SECOND / debugFactor;
+const CAT_VISIT_DURATION = 15 * MINUTE / debugFactor;
+const TOOL_REMINDER_INTERVAL = 30 * MINUTE / debugFactor;
+const UNUSED_KLO_CHECK_INTERVAL = 48 * HOUR / debugFactor;
+
+let cleanTimeout = null;
+let useTimeout = null;
+let cleaningToolInterval = null;
+let cleaningReminderSchedule = null;
+let toolReminderSchedule = null;
+
+// Logging function for detailed console output
+function logDebug(message) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`);
+}
+
+// Function for Alexa notifications
+function sendAlexaNotification(message) {
+  setState('0_userdata.0.GlobalVars.AlexaNotify', { val: message, ack: true });
+}
+
+// Function for random Alexa messages
+function getRandomAlexaMessage(count) {
+  const messages = [
+    `Das Katzenklo wurde ${count} Mal seit der letzten Reinigung benutzt. Bitte zeitnah reinigen.`,
+    `Eine Nachricht von Barbarossa: MIAUU! Bitte macht mein Katzenklo sauber. Ich habe bereits ${count} Mal da rein gemacht.`,
+    `Eine Nachricht von Barbarossa: MIAUU! Ich finde mein Katzenklo ist so langsam nicht mehr schön. Ich bin bereits ${count} Mal da drauf gewesen.`,
+    `Hey Mensch, ${count} Mal schon benutzt und kein frisches Streu? Ich glaube, ich rieche das auch noch morgen!`,
+    `Barbarossa hier: ${count} Mal habe ich das Klo besucht, aber irgendwie wird's hier langsam kuschelig... vielleicht mal sauber machen?`,
+    `Achtung, Achtung! Katzentoilette wurde ${count} Mal frequentiert. Dringend Reinigung nötig, bevor es zur Müllhalde mutiert!`,
+    `Miau! Das Katzenklo hat schon ${count} Besuche erlebt. Zeit für eine Auffrischung, oder ich ziehe vielleicht ins Wohnzimmer um...`,
+    `Das Klo ist schon ${count} Mal genutzt worden. Hast du vielleicht ein Herz für saubere Pfoten?`,
+    `Hier spricht das Katzenklo: Es wurde ${count} Mal benutzt und ich kann nicht mehr. Bitte helfen!`,
+    `Das Klo schreit: ${count} Mal benutzt und noch immer kein frisches Streu? Wo bleibt der Service?`
+  ];
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
+// Check initial state on script start
+const currentCount = getState(CatToiletCounter).val || 0;
+if (currentCount >= CatShitWarning) {
+  setState(CleanCatToilet, { val: true, ack: true });
+  sendAlexaNotification(getRandomAlexaMessage(currentCount));
+  logDebug(`Initial check: Cat toilet used ${currentCount} times, cleaning required.`);
+  
+  // Start hourly reminders between 9 and 22
+  if (!cleaningReminderSchedule) {
+    cleaningReminderSchedule = schedule('0 9-22 * * *', () => {
+      if (getState(CleanCatToilet).val) {
+        sendAlexaNotification(getRandomAlexaMessage(getState(CatToiletCounter).val));
+        logDebug('Hourly reminder to clean cat toilet sent.');
+      }
+    });
+  }
+}
+
+// Event: Cleaning tool is moved
+on({ id: CleaningTool, change: 'ne' }, function(obj) {
+  clearTimeout(cleanTimeout);
+  clearTimeout(useTimeout);
+  clearInterval(cleaningToolInterval);
+  
+  // Stop existing reminder schedules
+  if (toolReminderSchedule) {
+    clearSchedule(toolReminderSchedule);
+    toolReminderSchedule = null;
+  }
+
+  if (obj.state.val) {
+    // Cleaning starts
+    logDebug('Cat toilet cleaning started.');
+    setState(CleaningToolAlert, { val: true, ack: true });
+    logDebug(`CleaningToolAlert set to true`);
+    cleanTimeout = setTimeout(() => {
+      // Cleaning completed after 1 minute (adjusted for debugging)
+      setState(CleanCatToilet, { val: false, ack: true });
+      setState(CatToiletCounter, { val: 0, ack: true });
+      setState(CatToiletCounterClean, { val: (getState(CatToiletCounterClean).val || 0) + 1, ack: true });
+      logDebug(`CatToiletCounterClean increased to ${(getState(CatToiletCounterClean).val || 0) + 1}`);
+      logDebug('Cat toilet has been cleaned.');
+      
+      // Stop reminder schedule if exists
+      if (cleaningReminderSchedule) {
+        clearSchedule(cleaningReminderSchedule);
+        cleaningReminderSchedule = null;
+      }
+    }, CLEANING_COMPLETION_TIME);
+
+    // Start hourly reminders between 9 and 22 for incorrectly stored cleaning tool
+    toolReminderSchedule = schedule('0 9-22 * * *', () => {
+      if (getState(CleaningTool).val) {
+        sendAlexaNotification('Achtung: Die Reinigungsschaufel für das Katzenklo ist nicht richtig verstaut.');
+        logDebug('Hourly reminder: Cat toilet cleaning tool is not properly stored.');
+      }
+    });
+
+  } else {
+    logDebug('Cat toilet cleaning finished.');
+    setState(CleaningToolAlert, { val: false, ack: true });
+    logDebug(`CleaningToolAlert set to false`);
+  }
+});
+
+// Event: Cat toilet is used (door movement)
+on({ id: CatDoor, change: 'ne' }, function(obj) {
+  logDebug('Movement at cat door detected.');
+  if (!getState(CleaningTool).val) {
+    // Only count if not currently being cleaned
+    clearTimeout(useTimeout);
+    useTimeout = setTimeout(() => {
+      // Cat visit counted as complete after 5 minutes (adjusted for debugging)
+      setState(CatToiletCounter, { val: (getState(CatToiletCounter).val || 0) + 1, ack: true });
+      logDebug(`CatToiletCounter increased to ${(getState(CatToiletCounter).val || 0) + 1}`);
+      setState(CatToiletCounterTotal, { val: (getState(CatToiletCounterTotal).val || 0) + 1, ack: true });
+      logDebug(`CatToiletCounterTotal increased to ${(getState(CatToiletCounterTotal).val || 0) + 1}`);
+      logDebug('Cat toilet was used.');
+    }, CAT_VISIT_DURATION);
+  } else {
+    logDebug('Cleaning in progress, cat toilet usage not counted.');
+  }
+});
+
+// Monitor usage and notify when cleaning is needed
+on({ id: CatToiletCounter, change: 'ne' }, function(obj) {
+  if ((obj.state.val || 0) >= CatShitWarning) {
+    setState(CleanCatToilet, { val: true, ack: true });
+    sendAlexaNotification(getRandomAlexaMessage(obj.state.val));
+    logDebug(`Cleaning warning: Cat toilet used ${obj.state.val} times, cleaning required.`);
+    
+    // Start hourly reminders between 9 and 22
+    if (!cleaningReminderSchedule) {
+      cleaningReminderSchedule = schedule('0 9-22 * * *', () => {
+        if (getState(CleanCatToilet).val) {
+          sendAlexaNotification(getRandomAlexaMessage(getState(CatToiletCounter).val));
+          logDebug('Hourly reminder to clean cat toilet sent.');
+        }
+      });
+    }
+  }
+});
+
+// Regular check if cat toilet has been unused for a long time
+schedule('0 8-21/1 * * *', function() {
+  const currentTime = new Date().getTime();
+  const lastUsage = getState(CatDoor).lc;
+  const lastCounterChange = getState(CatToiletCounter).lc;
+  
+  // Check if too much time has passed since last door movement OR last counter change
+  if (currentTime - Math.max(lastUsage, lastCounterChange) >= UNUSED_KLO_CHECK_INTERVAL) {
+    sendAlexaNotification('Es scheint, dass Barbarossa seit längerem nicht mehr auf dem Klo war. Bitte überprüfen.');
+    logDebug('Warning: No activity at cat toilet for more than 48 hours. Please check.');
+  }
+});

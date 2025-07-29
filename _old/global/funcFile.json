@@ -1,0 +1,21 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+/**
+ * Check if a file in the file system exists. It works synchronously.
+ * See: https://stackoverflow.com/questions/4482686/
+ * Version: Mic - 0.1 (27 Jan 2020)
+ * @param {string}  filePath   Full file path incl. file name, like '/etc/passwd' or '/tmp/textfile.txt'
+ */
+function GlobalFileExistsSync(filePath) {
+    const fs = require('fs');
+    if (fs.existsSync(filePath)) {
+        return true;
+    } else {
+        return false;
+    }
+}

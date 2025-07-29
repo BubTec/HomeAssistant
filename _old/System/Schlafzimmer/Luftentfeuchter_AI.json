@@ -1,0 +1,82 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+var waterSensor, waterIntervalRunning, movement, temperatureLimit, humidityLimit, humidity, switch2, windowOpen, tv, interval, outsideTemperature, notificationsEnabled;
+
+// Define datapoints
+waterSensor = 'zigbee.0.a4c13894bde21c25.detected';
+movement = '0_userdata.0.Rooms.Schlafzimmer.Movement';
+temperatureLimit = 15;
+humidityLimit = 48;
+humidity = 'sonoff.0.DVES_698865.SI7020_Humidity';
+switch2 = 'zigbee.0.7cb03eaa0a0a327c.state';
+windowOpen = 'javascript.0.WindowWatcher.Schlafzimmer.WindowIsOpen';
+tv = 'sonoff.0.DVES_DBE058.POWER';
+outsideTemperature = '0_userdata.0.Rooms.Draußen.TempAvr';
+notificationsEnabled = true; // Global notifications toggle
+
+// Main dehumidifier control logic
+on({ id: [humidity, windowOpen, tv, outsideTemperature, movement], change: 'ne' }, async (obj) => {
+    const currentHumidity = getState(humidity).val;
+    const isWindowOpen = getState(windowOpen).val;
+    const isTVOn = getState(tv).val;
+    const outsideTemp = getState(outsideTemperature).val;
+    const hasMovement = getState(movement).val;
+    const currentDehumidifierState = getState(switch2).val;
+    
+    // Check if dehumidifier should be turned on
+    const shouldTurnOn = 
+        currentHumidity >= humidityLimit &&
+        !isWindowOpen &&
+        !isTVOn &&
+        outsideTemp <= temperatureLimit &&
+        !hasMovement &&
+        compareTime('09:30', '20:30', 'between');
+
+    // Only change state if needed
+    if (shouldTurnOn && !currentDehumidifierState) {
+        setStateDelayed(switch2, { val: true, ack: false }, 500, true);
+        console.debug('Dehumidifier ON - Humidity: ' + currentHumidity + '%');
+        if (notificationsEnabled) {
+            sendTo('telegram.0', 'send', {
+                text: 'Dehumidifier ON - Current humidity: ' + currentHumidity + '%',
+                chatId: '867157282'
+            });
+        }
+    } else if (!shouldTurnOn && currentDehumidifierState) {
+        setStateDelayed(switch2, { val: false, ack: false }, 500, true);
+        console.debug('Dehumidifier OFF - Conditions not met');
+    }
+});
+
+// Water tank monitoring
+waterIntervalRunning = false;
+on({ id: waterSensor, change: 'ne' }, async (obj) => {
+    const isTankFull = obj.state ? obj.state.val : false;
+    
+    if (isTankFull && !waterIntervalRunning && notificationsEnabled) {
+        waterIntervalRunning = true;
+        const message = 'Warning! The dehumidifier water tank is full and needs to be emptied.';
+        console.warn(message);
+        
+        // Initial notification
+        setStateDelayed('0_userdata.0.GlobalVars.AlexaNotify', 
+            { val: message, ack: false }, 0, false);
+        
+        // Set up hourly reminders
+        interval = setInterval(() => {
+            setStateDelayed('0_userdata.0.GlobalVars.AlexaNotify', 
+                { val: message, ack: false }, 0, false);
+        }, 3600000); // 1 hour interval
+    } else if (!isTankFull) {
+        waterIntervalRunning = false;
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
+        }
+    }
+});

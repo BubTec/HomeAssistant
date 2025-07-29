@@ -1,0 +1,80 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+const ACCESS_TOKEN = "sk-key1-rKWvb2JBbWKM450qGOMTT3BlbkFJEzj5jduZecj5JCdYhj6K";
+const MODEL_ID =  "text-davinci-003"; 
+const QUESTION_DP_ID = "0_userdata.0.GlobalVars.OpenAIQuestion";
+const ANSWER_DP_ID = "0_userdata.0.GlobalVars.OpenAIAnswer";
+const LANGUAGE_DP_ID = "0_userdata.0.GlobalVars.OpenAILanguage";
+const MAX_TOKENS_DP_ID = "0_userdata.0.GlobalVars.OpenAIMaxTokens";
+const TEMPERATURE_DP_ID = "0_userdata.0.GlobalVars.OpenAITemperature";
+
+const https = require('https');
+
+on({id: QUESTION_DP_ID, change: "ne"}, function (obj) {
+  // Get the current value of the question datapoint
+  const question = getState(QUESTION_DP_ID).val;
+  console.log(`Question: ${question}`);
+
+  // Get the current value of the language datapoint
+  const language = getState(LANGUAGE_DP_ID).val;
+
+  // Get the current value of the max tokens datapoint
+  const maxTokens = getState(MAX_TOKENS_DP_ID).val;
+
+  // Get the current value of the temperature datapoint
+  const temperature = getState(TEMPERATURE_DP_ID).val;
+
+  // Create the HTTP POST options
+  const options = {
+    host: 'api.openai.com',
+    path: '/v1/completions',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${ACCESS_TOKEN}`
+    }
+  };
+
+  // Create the HTTP POST request
+  const req = https.request(options, (res) => {
+    console.log(`Status: ${res.statusCode}`);
+    console.log(`Headers: ${JSON.stringify(res.headers)}`);
+    res.setEncoding('utf8');
+    let responseData = '';
+    res.on('data', (chunk) => {
+      responseData += chunk;
+    });
+    res.on('end', () => {
+      console.log(`Answer: ${responseData}`);
+      const responseJson = JSON.parse(responseData);
+      if (responseJson.hasOwnProperty('choices')) {
+        const answer = responseJson.choices[0].text;
+        // Set the value of the answer datapoint to the first answer
+        setState(ANSWER_DP_ID, answer);
+      } else {
+        setState(ANSWER_DP_ID, "Keine Antwort verfügbar");
+      }
+    });
+  });
+
+req.on('error', (e) => {
+    console.error(`Problem with request: ${e.message}`);
+  });
+
+  // Send the HTTP POST request
+  req.write(JSON.stringify({
+    "model": MODEL_ID,
+    "prompt": question,
+    "max_tokens": maxTokens,
+    //"language": language,
+    "best_of": 1,
+    "temperature": temperature
+  }));
+  req.end();
+});

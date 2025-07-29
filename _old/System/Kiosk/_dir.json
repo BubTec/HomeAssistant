@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Kiosk",
+    "expert": true
+  },
+  "type": "channel",
+  "_id": "script.js.System.Kiosk",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  },
+  "from": "system.adapter.admin.0",
+  "user": "system.user.admin",
+  "ts": 1617779316082
+}

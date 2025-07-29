@@ -1,0 +1,22 @@
+{
+  "common": {
+    "name": "_off_funcTest",
+    "expert": true,
+    "engineType": "Javascript/js",
+    "engine": "system.adapter.javascript.0",
+    "source": "",
+    "debug": false,
+    "verbose": false,
+    "enabled": false
+  },
+  "type": "script",
+  "_id": "script.js.common._off_funcTest",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  },
+  "from": "system.adapter.admin.0",
+  "user": "system.user.admin",
+  "ts": 1730967366960
+}

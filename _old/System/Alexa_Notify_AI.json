@@ -1,0 +1,188 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+// Alexa notification system for ioBroker
+// Handles announcements across multiple Echo devices with smart room detection
+
+// Check if Alexa adapter is available
+const isAlexaAvailable = (() => {
+    try {
+        const alexaObject = getObject('alexa2.0');
+        if (!alexaObject) {
+            console.warn('Alexa adapter (alexa2.0) is not installed or not available - falling back to Telegram only');
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('Error checking Alexa adapter:', error.message);
+        return false;
+    }
+})();
+
+const ROOMS = {
+    BADEZIMMER: {
+        deviceId: 'alexa2.0.Echo-Devices.G090U509921309CK',
+        movementSensors: ['0_userdata.0.Rooms.Badezimmer.Movement', '0_userdata.0.Rooms.Flur-Oben.Movement']
+    },
+    EINGANG: {
+        deviceId: 'alexa2.0.Echo-Devices.G090LF0964270PMF',
+        movementSensors: ['0_userdata.0.Rooms.Eingang-Innen.Movement']
+    },
+    KÜCHE: {
+        deviceId: 'alexa2.0.Echo-Devices.G0916D10016204AV',
+        movementSensors: ['0_userdata.0.Rooms.Küche.Movement', '0_userdata.0.Rooms.Flur-unten.Movement']
+    },
+    WOHNZIMMER: {
+        deviceId: 'alexa2.0.Echo-Devices.G090P30874340H4E',
+        movementSensors: ['0_userdata.0.Rooms.Wohnzimmer.Movement', '0_userdata.0.Rooms.Wohnzimmer.Wohnzimmer_TV'],
+        timeRestricted: true,
+        timeRange: { start: '09:00', end: '15:00' },
+        weekendOnly: true
+    },
+    SCHLAFZIMMER: {
+        deviceId: 'alexa2.0.Echo-Devices.G090XG0894542523',
+        movementSensors: ['0_userdata.0.Rooms.Schlafzimmer.Movement']
+    },
+    WERKSTATT: {
+        deviceId: 'alexa2.0.Echo-Devices.G090U50991852309',
+        movementSensors: ['0_userdata.0.Rooms.Werkstatt.Movement']
+    },
+    BÜRO: {
+        deviceId: 'alexa2.0.Echo-Devices.G090U509917307TS',
+        movementSensors: ['0_userdata.0.Rooms.Büro.Movement', '0_userdata.0.Rooms.Flur-Oben.Movement'],
+        timeRestricted: true,
+        timeRange: { start: '08:30', end: '18:45' }
+    }
+};
+
+// Utility functions
+const isWeekend = () => {
+    const day = new Date().getDay();
+    return day === 0 || day === 6;
+};
+
+const isTimeBetween = (start, end) => {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const [startHour, startMin] = start.split(':').map(Number);
+    const [endHour, endMin] = end.split(':').map(Number);
+    const startTime = startHour * 60 + startMin;
+    const endTime = endHour * 60 + endMin;
+    return currentTime >= startTime && currentTime <= endTime;
+};
+
+const shouldAnnounceInRoom = (room) => {
+    if (room.timeRestricted) {
+        if (room.weekendOnly && !isWeekend()) return false;
+        if (!isTimeBetween(room.timeRange.start, room.timeRange.end)) return false;
+    }
+    return room.movementSensors.some(sensor => getState(sensor)?.val);
+};
+
+const getDeviceName = async (deviceId) => {
+    if (!isAlexaAvailable) return deviceId;
+    
+    try {
+        const devicePath = deviceId.split('.').slice(0, -2).join('.');
+        const device = await getObject(devicePath);
+        if (!device) {
+            console.warn(`Device not found: ${devicePath}`);
+            return deviceId;
+        }
+        return getAttr(device, 'common.name') || deviceId;
+    } catch (error) {
+        console.error(`Error getting device name for ${deviceId}: ${error.message}`);
+        return deviceId;
+    }
+};
+
+const removeHtmlCode = async (text) => {
+    if (!text) return '';
+    return text.replace(/<[^>]*>/g, '');
+};
+
+// Main announcement function
+const announceToDevice = async (deviceId, text, instant) => {
+    if (!isAlexaAvailable) return false;
+    
+    try {
+        const currentState = getState(`${deviceId}.Player.currentState`);
+        if (!currentState) {
+            console.warn(`Device state not found: ${deviceId}`);
+            return false;
+        }
+
+        if (currentState.val) {
+            console.debug(`Device ${await getDeviceName(deviceId)} is currently playing`);
+            return false;
+        }
+
+        const delay = instant ? 0 : Math.floor(Math.random() * (text.length / 5) * 1000);
+        setStateDelayed(`${deviceId}.Commands.announcement`, { val: text, ack: false }, delay, false);
+        console.debug(`Announcing to ${await getDeviceName(deviceId)} with delay: ${delay}ms`);
+        return true;
+    } catch (error) {
+        console.error(`Error announcing to device ${deviceId}: ${error.message}`);
+        return false;
+    }
+};
+
+// Global notification handler
+const globalNotify = async (text, instant) => {
+    if (!text) return;
+
+    try {
+        const doNotDisturb = getState('0_userdata.0.GlobalVars.DoNotDisturb')?.val;
+        const atHome = getState('0_userdata.0.GlobalVars.AtHome')?.val;
+        const nightMode = getState('0_userdata.0.GlobalVars.NightLightMode')?.val;
+
+        if (doNotDisturb || !atHome || nightMode) {
+            console.debug('Notifications disabled due to current state');
+            return;
+        }
+
+        let announcementMade = false;
+        if (isAlexaAvailable) {
+            for (const [roomName, room] of Object.entries(ROOMS)) {
+                if (shouldAnnounceInRoom(room)) {
+                    announcementMade = await announceToDevice(room.deviceId, text, instant) || announcementMade;
+                }
+            }
+
+            // Fallback announcement if no movement detected
+            if (!announcementMade) {
+                console.debug('No movement detected, using fallback devices');
+                await announceToDevice(ROOMS.KÜCHE.deviceId, text, instant);
+                await announceToDevice(ROOMS.BADEZIMMER.deviceId, text, instant);
+            }
+        }
+
+        // Handle Telegram notifications
+        const myPhone = getState('0_userdata.0.GlobalVars.MyPhone')?.val;
+        const telegramState = myPhone === false && instant
+            ? '0_userdata.0.GlobalVars.TelegramNormal'
+            : '0_userdata.0.GlobalVars.TelegramNormalMute';
+        
+        setState(telegramState, await removeHtmlCode(text));
+    } catch (error) {
+        console.error(`Error in global notification: ${error.message}`);
+    }
+};
+
+// Event listeners
+on({ id: [].concat(['0_userdata.0.GlobalVars.AlexaNotify']), change: 'any' }, async (obj) => {
+    console.debug('Delayed announcement');
+    await globalNotify(obj.state?.val, false);
+    setState('0_userdata.0.GlobalVars.AlexaNotifyCleaned', await removeHtmlCode(obj.state?.val));
+});
+
+on({ id: [].concat(['0_userdata.0.GlobalVars.AlexaNotifyInstant']), change: 'any' }, async (obj) => {
+    console.debug('Instant announcement');
+    await globalNotify(obj.state?.val, true);
+    setState('0_userdata.0.GlobalVars.AlexaNotifyCleaned', await removeHtmlCode(obj.state?.val));
+}); 

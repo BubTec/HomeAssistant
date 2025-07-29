@@ -1,0 +1,23 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "engineType": "Blockly",
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+// Beschreibe diese Funktion …
+async function etwas_tun() {
+    sendTo('telegram.0', {
+        latitude:               52.522430,
+        longitude:              13.372234,
+        disable_notification:   true
+    });
+
+}
+
+
+await etwas_tun();
+
+//JTNDeG1sJTIweG1sbnMlM0QlMjJodHRwcyUzQSUyRiUyRmRldmVsb3BlcnMuZ29vZ2xlLmNvbSUyRmJsb2NrbHklMkZ4bWwlMjIlM0UlM0NibG9jayUyMHR5cGUlM0QlMjJwcm9jZWR1cmVzX2NhbGxjdXN0b21ub3JldHVybiUyMiUyMGlkJTNEJTIydkMlM0IyJTIzJTJCZk9lJTNEX2FVcGIpMH4lMkNzJTIyJTIweCUzRCUyMjExMyUyMiUyMHklM0QlMjItNjIlMjIlM0UlM0NtdXRhdGlvbiUyMG5hbWUlM0QlMjJldHdhcyUyMHR1biUyMiUzRSUzQyUyRm11dGF0aW9uJTNFJTNDJTJGYmxvY2slM0UlM0NibG9jayUyMHR5cGUlM0QlMjJwcm9jZWR1cmVzX2RlZmN1c3RvbW5vcmV0dXJuJTIyJTIwaWQlM0QlMjJveiU3Q18tUSUzRi5Ba2x4ZjhtJTNBSkI4SiUyMiUyMHglM0QlMjIyODglMjIlMjB5JTNEJTIyMzglMjIlM0UlM0NtdXRhdGlvbiUyMHN0YXRlbWVudHMlM0QlMjJmYWxzZSUyMiUzRSUzQyUyRm11dGF0aW9uJTNFJTNDZmllbGQlMjBuYW1lJTNEJTIyTkFNRSUyMiUzRWV0d2FzJTIwdHVuJTNDJTJGZmllbGQlM0UlM0NmaWVsZCUyMG5hbWUlM0QlMjJTQ1JJUFQlMjIlM0VjMlZ1WkZSdktDZDBaV3hsWjNKaGJTNHdKeXdnZXcwS0lDQWdJR3hoZEdsMGRXUmxPaUFnSUNBZ0lDQWdJQ0FnSUNBZ0lEVXlMalV5TWpRek1Dd05DaUFnSUNCc2IyNW5hWFIxWkdVNklDQWdJQ0FnSUNBZ0lDQWdJQ0F4TXk0ek56SXlNelFzRFFvZ0lDQWdaR2x6WVdKc1pWOXViM1JwWm1sallYUnBiMjQ2SUNBZ2RISjFaUTBLZlNrN0RRbyUzRCUzQyUyRmZpZWxkJTNFJTNDY29tbWVudCUyMHBpbm5lZCUzRCUyMmZhbHNlJTIyJTIwaCUzRCUyMjgwJTIyJTIwdyUzRCUyMjE2MCUyMiUzRUJlc2NocmVpYmUlMjBkaWVzZSUyMEZ1bmt0aW9uJTIwJUUyJTgwJUE2JTNDJTJGY29tbWVudCUzRSUzQyUyRmJsb2NrJTNFJTNDJTJGeG1sJTNF

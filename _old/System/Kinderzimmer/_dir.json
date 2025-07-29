@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Kinderzimmer",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1737044036181,
+  "_id": "script.js.System.Kinderzimmer",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

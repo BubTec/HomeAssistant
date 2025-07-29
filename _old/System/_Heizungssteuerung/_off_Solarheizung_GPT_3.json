@@ -1,0 +1,73 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+// Konfiguration
+const fans = [
+  {
+    id: "sonoff.0.DVES_183A0B.POWER",
+    power: 285
+  },
+  {
+    id: "sonoff.0.DVES_1861B8.POWER",
+    power: 285
+  },
+  // Weitere Lüfter hinzufügen, falls erforderlich
+];
+
+const turnOnTimeout = 5; // Timeout in Sekunden zum Einschalten der Lüfter
+const turnOffTimeout = 5; // Timeout in Sekunden zum Ausschalten der Lüfter
+const consumptionId = "0_userdata.0.GlobalVars.GlobalWattShelly3EM"; // Datenpunkt für den Stromverbrauch
+const temperatureId = "openweathermap.0.forecast.current.temperature"; // Datenpunkt für die Außentemperatur
+
+const averageConsumptionMeasurements = 5; // Anzahl der Messungen für den Durchschnittsverbrauch
+const minimumOutsideTemperature = 15; // Minimale Außentemperatur für den Lüfterbetrieb
+const homePresenceDataPoint = "0_userdata.0.GlobalVars.AtHomeDevice"; // Datenpunkt für die Anwesenheit zu Hause
+
+let consumptionMeasurements = Array.from({ length: averageConsumptionMeasurements }, () => 0);
+
+console.log("Starting script...");
+
+// Überwache Veränderungen des Stromverbrauchs
+on({ id: consumptionId, change: "ne" }, (obj) => {
+  console.log(`Consumption changed: ${obj.state.val}`);
+
+  // Füge den aktuellen Messwert zur Messwertliste hinzu
+  consumptionMeasurements.push(obj.state.val);
+  console.log(`Added measurement: ${obj.state.val}`);
+
+  // Wenn die Messwertliste länger ist als der Durchschnittszeitraum,
+  // entferne den ältesten Messwert aus der Liste
+  if (consumptionMeasurements.length > averageConsumptionMeasurements) {
+    consumptionMeasurements.shift();
+    console.log("Removed oldest measurement.");
+  }
+
+  // Berechne den Durchschnitt der letzten Messungen
+  const averageConsumption =
+    consumptionMeasurements.reduce((sum, val) => sum + val, 0) /
+    Math.min(consumptionMeasurements.length, averageConsumptionMeasurements);
+  console.log(`Average Consumption: ${averageConsumption}`);
+
+  console.log(`Current consumption measurements: ${consumptionMeasurements}`);
+
+  // Überprüfe, ob ein Lüfter eingeschaltet werden sollte, um den Verbrauch auszugleichen
+  if (averageConsumption < 0) {
+    for (const fan of fans) {
+      if (fan.power >= Math.abs(averageConsumption) && !fan.isOn) {
+        console.log(`Turning on fan with id ${fan.id} and power ${fan.power} W`);
+        setState(fan.id, true);
+        setTimeout(() => {
+          console.log(`Turning off fan with id ${fan.id}`);
+          setState(fan.id, false);
+          fan.isOn = false;
+        }, turnOffTimeout * 1000);
+        break;
+      }
+    }
+  }
+});

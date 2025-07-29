@@ -1,0 +1,15 @@
+{
+  "common": {
+    "name": "_Heizungssteuerung",
+    "expert": true
+  },
+  "type": "channel",
+  "_id": "script.js.System._Heizungssteuerung",
+  "acl": {
+    "object": 1636,
+    "ownerGroup": "system.group.administrator"
+  },
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1736767969210
+}

@@ -1,0 +1,161 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+/** 
+ * Checks if Array or String is not undefined, null or empty.
+ * 08-Sep-2019: added check for [ and ] to also catch arrays with empty strings.
+ * @param inputVar - Input Array or String, Number, etc.
+ * @return true if it is undefined/null/empty, false if it contains value(s)
+ * Array or String containing just whitespaces or >'< or >"< or >[< or >]< is considered empty
+*/
+
+function GlobalIsLikeEmpty(inputVar) 
+{
+    if (typeof inputVar !== 'undefined' && inputVar !== null) {
+        let strTemp = JSON.stringify(inputVar);
+        strTemp = strTemp.replace(/\s+/g, ''); // remove all whitespaces
+        strTemp = strTemp.replace(/\"+/g, "");  // remove all >"<
+        strTemp = strTemp.replace(/\'+/g, "");  // remove all >'<
+        strTemp = strTemp.replace(/\[+/g, "");  // remove all >[<
+        strTemp = strTemp.replace(/]+/g, "");  // remove all >]<
+
+        if (strTemp !== '') {
+            return false;
+        } else {
+            return true;
+        }
+    } else {
+        return true;
+    }
+}
+
+/**
+ * Will just keep lower case letters, numbers, and replaces the rest with a single "-"
+ * Use Case: to prepare a sting for a file name.
+ * @param {string}  strInput   Input String
+ * @return {string}   the sanitized string 
+ */
+function GlobalSanitizeStr(strInput) {
+ 
+    let strT = strInput.toLowerCase();
+    let strResult = strT.replace(/([^a-z0-9]+)/gi, '-');
+    return strResult;
+ 
+}
+
+/**
+ * Clean a given string for using in ioBroker as part of a atate
+ * Will just keep letters, incl. Umlauts, numbers, "-" and "_" and "."
+ * @param  {string}  strInput   Input String
+ * @return {string}   the processed string 
+ */
+function GlobalCleanStringForState(strInput) {
+    let strResult = strInput.replace(/([^a-zA-ZäöüÄÖÜß0-9\-\._]+)/gi, '');
+    return strResult;
+}
+/**
+ * Checks if the string provided contains either every or some terms.
+ * Requires function isLikeEmpty().
+ * Source: https://stackoverflow.com/questions/36283767/javascript-select-the-string-if-it-matches-multiple-words-in-array
+ * @param {string} strInput - The string on which we run this search
+ * @param {array} arrayTerms - The terms we are searching, e.g. ["hue", "error", "raspberry"]
+ * @param {string} type - 'every': all terms must match to be true,
+ *                        'some': at least one term (or more) must match
+ *                        'blacklist': different here: function will always
+ *                         return FALSE, but if one of the arrayTerms contains
+ *                         minimum 3 chars and is found in provided string,
+ *                         we return TRUE (= blacklisted item found).
+ * @return {boolean}       true, if it contains ALL words, false if not all words (or none)
+ *                         Also, will return true if arrayTerms is not array or an empty array
+ */
+function GlobalStrMatchesTerms(strInput, arrayTerms, type) {
+    if(type === 'blacklist') {
+        if (Array.isArray(arrayTerms)) {
+            let arrayTermsNew = [];
+            for (let lpTerm of arrayTerms) {
+                if (lpTerm.length >= 3) {
+                    arrayTermsNew.push(lpTerm);
+                }
+            }
+            if(GlobalIsLikeEmpty(arrayTermsNew) === false) {
+                let bResultBL = arrayTermsNew.some(function(word) {
+                    return strInput.indexOf(word) > -1;
+                });
+                return bResultBL;
+            } else {
+                return false; // return false if no items to be blacklisted
+            }
+        } else {
+            return false; // we return false if the arrayTerms given is not an array. Want to make sure if we really should blacklist...
+        }
+ 
+    } else {
+        if (Array.isArray(arrayTerms)) {
+            if(type === 'every') {
+                let bResultEvery = arrayTerms.every(function(word) {
+                    return strInput.indexOf(word) > -1;
+                });
+                return bResultEvery;
+            } else if(type === 'some') {
+                let bResultSome = arrayTerms.some(function(word) {
+                    return strInput.indexOf(word) > -1;
+                });
+                return bResultSome;
+            }
+ 
+        } else {
+            return true; // we return true if the arrayTerms given is not an array
+        }
+    }
+}
+/**
+  * Encrypts or decrypts a string.
+  * @source https://codereview.stackexchange.com/questions/127454/a-small-custom-encryption-decryption-script
+  * @param {string}  strInput   The input string to be encrypted or decrypted
+  * @param {boolean}  bEncrypt  if true, it will be encrypted, otherwise decrypted
+  * @return {string}  Encrypted or decrypted string.
+*/
+function GlobalCryptStr(strInput, bEncrypt) {
+    var text = strInput;
+    var crypted = '';
+    for(var i = 0; i < text.length; i++) {
+        var ASCII = text[i].charCodeAt(0);
+        var n = null;
+        if(i % 2 === 0) {
+            n = bEncrypt === true ? ASCII + 4 : ASCII - 4;
+        }
+        else if(i % 2 == 1) {
+            n = bEncrypt === true ? ASCII + 7 : ASCII - 7;
+        }
+        var s = String.fromCharCode(n);
+        crypted += s;
+    }
+    return crypted;
+}
+
+
+/**
+* @param {string} mystring
+*/
+function GlobalTrimSpaces (mystring)
+{
+	return mystring.replace(/^\s*|\s*$/g, "");
+}
+
+
+function GlobalRemoveHTMLCode (stringCut)
+{
+        // remove all else
+    stringCut=stringCut.replace(/<(?:.|\s)*?>/g, " ");
+ 
+    // get rid of html-encoded characters:
+    stringCut=stringCut.replace(/ /gi," ");
+    stringCut=stringCut.replace(/&/gi,"&");
+    stringCut=stringCut.replace(/"/gi,'"');
+   // stringCut=stringCut.replace(//gi,'>');
+    return stringCut;
+}

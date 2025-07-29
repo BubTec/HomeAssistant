@@ -1,0 +1,32 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+sendTo('telegram.0', {
+    text:   'Schlafzimmer',
+    disable_notification: true,
+    reply_markup: {
+        keyboard: [
+            ['Schlafzimmer Gemütlich'],
+            ['Schlafzimmer Licht An','Schlafzimmer Licht Aus'],
+            ['Schlafzimmer TV An','Schlafzimmer TV Aus'],
+            ['Schlafzimmer Fire TV','Schlafzimmer Chromecast','Schlafzimmer Fernsehen'],
+            ['Schlafzimmer TV Leiser','Schlafzimmer TV Lauter'],
+            ['Schlafzimmer TV Sub Leiser','Schlafzimmer TV Sub Lauter'],
+            ['Schlafzimmer TV Mute'],
+            ['Schlafzimmer TV LED 10','Schlafzimmer TV LED 50','Schlafzimmer TV LED 100'],
+            ['Schlafzimmer Ventilator Schalten'],
+            ['Schlafzimmer Ventilator Speed','Schlafzimmer Ventilator Bewegung'],
+            ['Übersicht'],
+            ['', ''],
+        ],
+        resize_keyboard:   true,
+        one_time_keyboard: false
+    }
+});
+
+

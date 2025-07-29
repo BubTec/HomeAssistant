@@ -1,0 +1,145 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": true,
+  "verbose": true,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+// Konfiguration
+const fans = [
+  {
+    id: "sonoff.0.DVES_183A0B.POWER",
+    power: 285,
+  },
+  {
+    id: "sonoff.0.DVES_1861B8.POWER",
+    power: 185,
+  },
+  // Weitere Lüfter hinzufügen, falls erforderlich
+];
+
+const temperatureLimit = 15; // Temperaturgrenzwert in °C
+const turnOnTimeout = 5; // Timeout in Sekunden zum Einschalten der Lüfter
+const turnOffTimeout = 5; // Timeout in Sekunden zum Ausschalten der Lüfter
+
+let lastConsumption = null;
+let consumptionHistory = [];
+
+// Überwachung des Stromverbrauchs
+on(
+  {
+    id: "0_userdata.0.GlobalVars.GlobalWattShelly3EM",
+    change: "ne",
+  },
+  (obj) => {
+    const consumption = parseFloat(obj.state.val);
+    const outsideTemperature = getState(
+      "openweathermap.0.forecast.current.temperature"
+    ).val;
+    const presence = getState("0_userdata.0.GlobalVars.AtHomeDevice").val;
+
+    if (consumption !== lastConsumption) {
+      log(`Stromverbrauch: ${consumption} Watt`);
+      lastConsumption = consumption;
+      consumptionHistory.push(consumption);
+      if (consumptionHistory.length > 10) {
+        consumptionHistory.shift();
+      }
+    }
+
+    if (
+      consumption < 0 &&
+      outsideTemperature < temperatureLimit &&
+      presence
+    ) {
+      // Sortiere Lüfter nach Leistung
+      fans.sort((a, b) => a.power - b.power);
+
+      // Berechne den Durchschnittsverbrauch der letzten 10 Messungen
+      let averageConsumption = 0;
+      if (consumptionHistory.length > 0) {
+        averageConsumption =
+          consumptionHistory.reduce((acc, curr) => acc + curr, 0) /
+          consumptionHistory.length;
+      }
+
+      // Suche passenden Lüfter
+      let index = 0;
+      let totalPower = 0;
+      while (
+        index < fans.length &&
+        totalPower + fans[index].power <= -averageConsumption
+      ) {
+        totalPower += fans[index].power;
+        index++;
+      }
+
+      // Schalte Lüfter ein, wenn genügend Leistung vorhanden
+      if (index > 0) {
+        for (let i = 0; i < index; i++) {
+          const fan = fans[i];
+          getState(fan.id, (err, state) => {
+            if (!err && state.val !== true) {
+              setStateDelayed(fan.id, true, turnOnTimeout * 1000);
+              log(
+                `Lüfter ${i + 1} eingeschaltet (Leistungsaufnahme: ${fan.power} Watt)`
+              );
+            }
+          });
+        }
+      }
+
+      // Schalte Lüfter aus, wenn zu viel Leistung vorhanden
+      if (
+        index < fans.length &&
+        totalPower + fans[index].power >= -averageConsumption
+      ) {
+        const turnOffPower = fans
+          .slice(index)
+          .reduce((sum, fan) => sum + fan.power, 0);
+        const readings = [];
+        on(
+          {
+            id: "0_userdata.0.GlobalVars.GlobalWattShelly3EM",
+            change: "ne",
+          },
+          (obj) => {
+            const consumption = parseFloat(obj.state.val);
+           
+            readings.push(consumption);
+            if (readings.length >= 3) {
+              const avg = readings.reduce((sum, val) => sum + val, 0) / readings.length;
+              readings.splice(0, 1);
+              if (avg < -turnOffPower) {
+                for (let i = index; i < fans.length; i++) {
+                  const fan = fans[i];
+                  getState(fan.id, (err, state) => {
+                    if (!err && state.val !== false) {
+                      setState(fan.id, false);
+                      log(
+                        `Lüfter ${i + 1} ausgeschaltet (Leistungsaufnahme: ${fan.power} Watt)`
+                      );
+                    }
+                  });
+                }
+              }
+            }
+          }
+        );
+      } else {
+        // Schalte alle Lüfter aus, wenn Verbrauch positiv oder Temperatur über Grenzwert oder keine Anwesenheit
+        fans.forEach((fan, i) => {
+          getState(fan.id, (err, state) => {
+            if (!err && state.val !== false) {
+              setState(fan.id, false);
+              log(
+                `Lüfter ${i + 1} ausgeschaltet (Leistungsaufnahme: ${fan.power} Watt)`
+              );
+            }
+          });
+        });
+      }
+    }
+  }
+);

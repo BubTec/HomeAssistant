@@ -1,0 +1,68 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+/*
+ * Remove Duplicates from Array
+ * Source - https://stackoverflow.com/questions/23237704/nodejs-how-to-remove-duplicates-from-array
+ * @param {array} inputArray       Array to process
+ * @return {array}  Array without duplicates.
+*/
+
+function GlobalArrayRemoveDublicates(inputArray) 
+{
+    let uniqueArray;
+    uniqueArray = inputArray.filter(function(elem, pos) {
+        return inputArray.indexOf(elem) == pos;
+    });
+    return uniqueArray;
+}
+
+/*
+ * Clean Array: Removes all falsy values: undefined, null, 0, false, NaN and "" (empty string)
+ * Source: https://stackoverflow.com/questions/281264/remove-empty-elements-from-an-array-in-javascript
+ * @param {array} inputArray       Array to process
+ * @return {array}  Cleaned array
+*/
+
+function GlobalCleanArray(inputArray) {
+  var newArray = [];
+  for (let i = 0; i < inputArray.length; i++) {
+    if (inputArray[i]) {
+      newArray.push(inputArray[i]);
+    }
+  }
+  return newArray;
+}
+
+/*
+ * Removing Array element(s) by input value. 
+ * @param {array}   arr             the input array
+ * @param {string}  valRemove       the value to be removed
+ * @param {boolean} [exact=true]    OPTIONAL: default is true. if true, it must fully match. if false, it matches also if valRemove is part of element string
+ * @return {array}  the array without the element(s)
+*/
+
+function GlobalArrayRemoveElementsByValue(arr, valRemove, exact) {
+ 
+    if (exact === undefined) exact = true;
+ 
+    for ( let i = 0; i < arr.length; i++){ 
+        if (exact) {
+            if ( arr[i] === valRemove) {
+                arr.splice(i, 1);
+                i--; // required, see https://love2dev.com/blog/javascript-remove-from-array/
+            }
+        } else {
+            if (arr[i].indexOf(valRemove) != -1) {
+                arr.splice(i, 1);
+                i--; // see above
+            }
+        }
+    }
+    return arr;
+}
+

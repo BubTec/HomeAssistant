@@ -1,0 +1,23 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+sendTo('telegram.0', {
+    text:   'Summer',
+    disable_notification: true,
+    reply_markup: {
+        keyboard: [
+            ['Summer außen'],
+            ['Summer innen'],
+            ['cam-02 snapshot'],
+            ['cam-02 snapshot3'],
+            ['Übersicht'],
+            ['', ''],
+        ],
+        resize_keyboard:   true,
+        one_time_keyboard: false
+    }
+});

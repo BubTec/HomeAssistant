@@ -1,0 +1,52 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+console.log("Waiting...");
+await sleep(180000);
+console.log("waiting end. Start Script");
+
+/**
+ * @param {string} txt
+ */
+function alarmMail(txt) 
+{
+    sendTo('telegram.1', '' + txt);
+    console.log(txt);
+    setState('0_userdata.0.GlobalVars.AdapterStateText', txt);
+}
+
+var cnt = 0;
+
+on(/^system\.adapter\..+\.connected$/, async function(dp) 
+{
+    var id = dp.id.split('.');
+    var common = getObject('system.adapter.' + id[2] + '.' + id[3])
+        .common;
+    if (common.mode == 'daemon' && common.enabled) 
+    { // Instanzen mit cronjob und gesperrte Instanzen ausblenden
+        if (dp.state.val && dp.oldState.val === false) 
+        {
+            cnt--;
+            if (cnt <= 0) 
+            {
+                alarmMail('✅ Adapter ' + id[2] + '.' + id[3] + ' läuft Fehlerfrei');
+                setState('0_userdata.0.GlobalVars.AdapterState', true);
+                cnt = 0; // falls verzählt und cnt < 0
+            }
+        } else if (dp.state.val === false && dp.oldState.val) 
+        {
+
+            alarmMail('❌ Adapter ' + id[2] + '.' + id[3] + ' meldet Probleme');
+            setState('0_userdata.0.GlobalVars.AdapterState', false);
+            console.log('starte Adapter neu');
+
+                //extendObject('system.adapter.' + id[2] + '.' + id[3], {common: {enabled: true}});
+
+            cnt++;
+        }
+    }
+});

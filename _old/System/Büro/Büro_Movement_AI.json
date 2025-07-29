@@ -1,0 +1,80 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+// Constants for state IDs
+const MOVEMENT_STATE = '0_userdata.0.Rooms.Büro.Movement';
+const LOG_INFO = 'info';
+const LOG_ERROR = 'error';
+
+// Array of trigger sensors
+const TRIGGER_SENSORS = [
+    'zigbee.0.00158d0002b42ff4.occupancy',  // PIR sensor left
+    'zigbee.0.00158d00028bc802.vibration',  // Vibration sensor
+    'zigbee.0.00158d00028bc802.tilt',       // Tilt sensor
+    'ping.0.iobroker.192_168_1_88',          // Ping sensor
+    'zigbee.0.a4c138759aab9639.occupancy' // PIR sensor right
+];
+
+// Delay time in milliseconds for turning off movement detection
+const MOVEMENT_OFF_DELAY = 30000;  // 30 seconds
+
+/**
+ * Checks if a state exists and is valid
+ * @param {string} stateId - The ID of the state to check
+ * @returns {boolean} - Whether the state is valid
+ */
+function isStateValid(stateId) {
+    try {
+        const state = getState(stateId);
+        return state && state.val !== null && state.val !== undefined;
+    } catch (error) {
+        log(`Error checking state ${stateId}: ${error}`, LOG_ERROR);
+        return false;
+    }
+}
+
+/**
+ * Updates the movement state based on sensor values
+ */
+function updateMovementState() {
+    try {
+        // Filter out invalid sensors and check for movement
+        const validSensors = TRIGGER_SENSORS.filter(sensor => isStateValid(sensor));
+        
+        if (validSensors.length === 0) {
+            log('No valid sensors found!', LOG_ERROR);
+            return;
+        }
+
+        const hasMovement = validSensors.some(sensor => getState(sensor).val === true);
+        const currentState = getState(MOVEMENT_STATE).val;
+
+        // Only update if state changes
+        if (hasMovement !== currentState) {
+            setStateDelayed(MOVEMENT_STATE, { val: hasMovement, ack: false }, hasMovement ? 0 : MOVEMENT_OFF_DELAY, true);
+            log(`Movement Büro - ${hasMovement ? 'detected' : 'stopped'} - State will change in ${hasMovement ? '0' : MOVEMENT_OFF_DELAY/1000}s`, LOG_INFO);
+        }
+    } catch (error) {
+        log(`Error in updateMovementState: ${error}`, LOG_ERROR);
+    }
+}
+
+// Main event listener for sensor changes
+on({ id: TRIGGER_SENSORS, change: 'ne' }, async (obj) => {
+    log(`Sensor ${obj.id} changed to ${obj.state.val}`, LOG_INFO);
+    updateMovementState();
+});
+
+// Regular check of sensor states every 15 minutes
+schedule('*/15 * * * *', updateMovementState);
+
+// Initial state check on script start
+updateMovementState();
+
+// Log script start
+log('Office movement detection script started', LOG_INFO); 

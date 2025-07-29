@@ -1,0 +1,36 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+
+/**
+* @param {string} ObjectID
+*/
+function GlobalGetRoomName(ObjectID) 
+{
+    let room = getObject(ObjectID, 'rooms').enumNames[0];
+    if (typeof room == 'object')
+    {
+        if (room.de)
+        {
+            room=room.de
+        }
+        else
+        {
+            room=room.en
+        }
+    } 
+return room;
+}
+
+/**
+* @param {string} ObjectID
+*/
+function GlobalGetName(ObjectID)
+{
+    let name = getObject(ObjectID).common.name;
+    return name;
+}

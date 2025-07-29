@@ -1,0 +1,43 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+/**
+* Zweck: Korrigiert übergeordnete Ordnerstrukturen eines Datenpunkts
+* Datum: 07.08.2021
+* Autor: @fastfoot
+*/
+// In den Settings der Javascript-Instanz muss setObject erlaubt sein!!!
+let arr = [],
+id = '';
+const ids = $('0_userdata.0.*');
+ids.each(idTmp => {
+arr=idTmp.split('.');
+arr.splice(arr.length-1);
+id=arr.join('.');
+if(arr[0] === '0_userdata' || arr[0] === 'javascript'){
+correctObject(id, arr);
+}
+})
+function correctObject(id,arr){
+if(arr.length === 2) return;
+if(!existsObject(id)){
+let obj = {};
+obj = {
+type: 'folder',
+common:{
+name: arr[arr.length - 1]
+}
+}
+extendObject(id, obj, e => {
+if (e) log('Fehler beim Schreiben des Objektes: '+ id + ' ' + e);
+})
+}
+arr.splice(arr.length - 1);
+id = arr.join('.');
+correctObject(id, arr);
+}

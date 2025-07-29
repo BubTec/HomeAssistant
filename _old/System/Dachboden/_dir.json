@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "Dachboden",
+    "expert": true
+  },
+  "type": "channel",
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1676537174466,
+  "_id": "script.js.System.Dachboden",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  }
+}

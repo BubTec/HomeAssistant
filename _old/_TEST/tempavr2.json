@@ -1,0 +1,39 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+function main() {
+  const temperatureSelectors = Array.prototype.slice.apply($("zigbee.*.*.temperature"));
+  temperatureSelectors.push('sonoff.0.DVES_DA8621.SI7020_Temperature');
+  const roomToDevices = {};
+
+  // Iteriere durch die Selectoren und speichere die Temperaturen pro Raum
+  for (const selector of temperatureSelectors) {
+    const roomName = GlobalGetRoomName(selector);
+    const state = getState(selector).val;
+
+    // Initialisiere das Objekt für den Raum, falls es noch nicht vorhanden ist
+    if (!roomToDevices[roomName]) {
+      roomToDevices[roomName] = [];
+    }
+
+    roomToDevices[roomName].push(state);
+  }
+
+  // Berechne den Durchschnittswert für jeden Raum
+  for (const roomName in roomToDevices) {
+    const temps = roomToDevices[roomName];
+    const average = temps.reduce((a, b) => a + b, 0) / temps.length;
+    console.log(`Raum: ${roomName}  Durchschnittswert: ${average}  Alle Werte: ${temps}`);
+  }
+}
+
+main();
+
+schedule("*/5 * * * *", async function () {
+  main();
+});

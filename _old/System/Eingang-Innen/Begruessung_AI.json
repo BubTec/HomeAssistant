@@ -1,0 +1,232 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+// Global variables for state management
+let unlock = true;
+let counter = 0;
+let slavePIR = false;
+let slavePirTimeout = null;
+let lockTimeout = null;
+
+// Constants
+const TIMEOUT_VALUES = {
+    SLAVE_PIR: 120000,    // 2 minutes
+    LOCK: 900000         // 15 minutes
+};
+
+// Notification texts
+const NOTIFICATIONS = {
+    mail: [
+        'Du hast Post im Briefkasten',
+        'Es liegt Post für dich bereit',
+        'Schau mal im Briefkasten nach, da ist was für dich'
+    ],
+    waste: {
+        yellow: [
+            'Vergiss nicht, den gelben Sack und das Altpapier rauszustellen',
+            'Heute kommt die Müllabfuhr für gelben Sack und Altpapier',
+            'Zeit für gelben Sack und Altpapier'
+        ],
+        black: [
+            'Vergiss nicht, die schwarze und braune Tonne rauszustellen',
+            'Heute kommt die Müllabfuhr für Rest- und Biomüll',
+            'Zeit für Rest- und Biomüll'
+        ]
+    },
+    windows: [
+        'In {rooms} sind noch Fenster offen',
+        'Bitte schließe die Fenster in {rooms}',
+        'Die Fenster in {rooms} stehen noch offen'
+    ]
+};
+
+// Enhanced greeting texts
+const GREETINGS = {
+    normal: [
+        "Willkommen zuhause!",
+        "Hallo!",
+        "Schön dich zu sehen!",
+        "Willkommen zurück!",
+        "Sei gegrüßt!",
+        "Hey, wie geht's?",
+        "Schön dich wieder zu sehen!",
+        "Hallo, hallo!",
+        "Willkommen in deinem Smart Home!",
+        "Hi!",
+        "Schön, dass du wieder da bist!",
+        "Hallo Freund!",
+        "Hey, willkommen zuhause!",
+        "Freut mich, dich zu sehen!",
+        "Hallo Sonnenschein!",
+        "Hey Superstar!",
+        "Willkommen daheim!",
+        "Grüß dich!",
+        "Ein herzliches Willkommen!",
+        "Hallo, bist du es, den ich suche?",
+        "Zuhause ist es doch am schönsten!",
+        "Schau mal wer da ist!",
+        "Der verlorene Sohn kehrt heim!",
+        "Willkommen in deinem Schloss!",
+        "Was für eine nette Überraschung!",
+        "Dein Zuhause hat dich vermisst!",
+        "Tritt ein und fühl dich wohl!",
+        "Ah, der Meister kehrt zurück!",
+        "Deine Anwesenheit ehrt uns!",
+        "Willkommen in deinem Refugium!"
+    ],
+    funny: [
+        "Schau mal wer sich hier blicken lässt!",
+        "Die Legende ist eingetroffen!",
+        "Warnung: Awesome Person detected!",
+        "Lasst die Konfetti regnen!",
+        "Alarm: VIP hat das Gebäude betreten!",
+        "Meine Damen und Herren, der Star ist da!",
+        "Roter Teppich ist ausgerollt!",
+        "Das Warten hat ein Ende - du bist da!",
+        "Trommelwirbel bitte...",
+        "Breaking News: Du bist zuhause!",
+        "Mission 'Heimkehr' erfolgreich!",
+        "Trautes Heim, Glück allein!",
+        "Dein Thron wartet schon!",
+        "Die Macht ist stark in diesem einen!",
+        "Willkommen zurück in der Kommandozentrale!"
+    ],
+    movie: [
+        "Möge die Macht mit dir sein!",
+        "Lebe lang und in Frieden!",
+        "Es geht doch nichts über Zuhause!",
+        "Willkommen in der Matrix!",
+        "Bis zur Unendlichkeit und... nach Hause!",
+        "Ich komme wieder... Oh warte, du bist ja schon da!",
+        "Bond. Zuhause Bond.",
+        "Houston, der Bewohner ist gelandet!",
+        "Willkommen im Jurassic Home!",
+        "E.T. nach Hause telefonieren... Oh, du bist ja schon hier!"
+    ],
+    december: [
+        "Komm rein und wärm dich auf!",
+        "Frohe Weihnachten und willkommen zuhause!",
+        "Ho ho ho, schau mal wer da ist!",
+        "Willkommen in deinem Winterwunderland!",
+        "Draußen ist's kalt - aber hier drin schön warm!",
+        "Schmückt die Hallen, du bist zuhause!",
+        "Kling Glöckchen klingelingeling!",
+        "Der Weihnachtself ist da!",
+        "Willkommen in deinem Weihnachtsparadies!",
+        "Das schönste Weihnachtsgeschenk - du bist zuhause!"
+    ]
+};
+
+// Helper function to get random greeting
+function getRandomGreeting() {
+    const currentMonth = new Date().getMonth() + 1;
+    const greetingPool = [];
+
+    // Add normal greetings
+    greetingPool.push(...GREETINGS.normal);
+
+    // Add funny greetings (30% chance)
+    if (Math.random() < 0.3) {
+        greetingPool.push(...GREETINGS.funny);
+    }
+
+    // Add movie quotes (20% chance)
+    if (Math.random() < 0.2) {
+        greetingPool.push(...GREETINGS.movie);
+    }
+
+    // Add December greetings if applicable
+    if (currentMonth === 12 && new Date().getHours() >= 18) {
+        greetingPool.push(...GREETINGS.december);
+    }
+
+    return greetingPool[Math.floor(Math.random() * greetingPool.length)];
+}
+
+// Helper function to get information texts
+function getInfoTexts() {
+    const infoTexts = [];
+
+    // Check mailbox
+    if (getState('0_userdata.0.GlobalVars.Postbox').val) {
+        infoTexts.push(NOTIFICATIONS.mail[Math.floor(Math.random() * NOTIFICATIONS.mail.length)]);
+    }
+
+    // Check waste collection
+    if (getState('ical.0.events.0.today.GelberSack/PapierCarl-Schurz-Straße').val) {
+        infoTexts.push(NOTIFICATIONS.waste.yellow[Math.floor(Math.random() * NOTIFICATIONS.waste.yellow.length)]);
+    }
+    if (getState('ical.0.events.0.today.SchwarzeTonneCarl-Schurz-Straße').val) {
+        infoTexts.push(NOTIFICATIONS.waste.black[Math.floor(Math.random() * NOTIFICATIONS.waste.black.length)]);
+    }
+
+    // Check windows
+    if (!getState('javascript.0.WindowWatcher.AllWindowsClosed').val && slavePIR) {
+        const rooms = String(getState('javascript.0.WindowWatcher.RoomsWithOpenWindows').val);
+        const windowText = NOTIFICATIONS.windows[Math.floor(Math.random() * NOTIFICATIONS.windows.length)];
+        infoTexts.push(windowText.replace('{rooms}', rooms));
+    }
+
+    return infoTexts;
+}
+
+// Slave PIR movement detection
+on({ id: '0_userdata.0.Rooms.Flur-unten.Movement', change: 'ne' }, async (obj) => {
+    if (obj.state.val) {
+        slavePIR = true;
+        if (slavePirTimeout) {
+            clearTimeout(slavePirTimeout);
+            slavePirTimeout = null;
+        }
+    } else {
+        slavePirTimeout = setTimeout(() => {
+            slavePirTimeout = null;
+            slavePIR = false;
+        }, TIMEOUT_VALUES.SLAVE_PIR);
+    }
+});
+
+// Main entrance movement detection
+on({ id: '0_userdata.0.Rooms.Eingang-Innen.Movement', change: 'ne' }, async (obj) => {
+    if ((obj.state ? obj.state.val : '') && unlock) {
+        console.info('Processing entrance greeting');
+        const infoTexts = getInfoTexts();
+
+        // Handle information announcements
+        if (infoTexts.length > 0) {
+            if (infoTexts.length === 1 && counter <= 3) {
+                setState('alexa2.0.Echo-Devices.G090LF0964270PMF.Commands.announcement', infoTexts[0]);
+                counter++;
+            } else if (infoTexts.length >= 2 && counter <= 3) {
+                const announcement = infoTexts.join(' and ');
+                setState('alexa2.0.Echo-Devices.G090LF0964270PMF.Commands.speak', announcement);
+                counter++;
+            }
+        } 
+        // Random greeting if no information to announce
+        else if (!slavePIR && Math.random() < 0.5) {
+            const greeting = getRandomGreeting();
+            setState('alexa2.0.Echo-Devices.G090LF0964270PMF.Commands.speak', greeting);
+        }
+
+        // Set lock timeout
+        console.info('Entrance locked');
+        unlock = false;
+        if (lockTimeout) {
+            clearTimeout(lockTimeout);
+        }
+        lockTimeout = setTimeout(() => {
+            console.info('Entrance unlocked');
+            unlock = true;
+            lockTimeout = null;
+        }, TIMEOUT_VALUES.LOCK);
+    }
+});
+
+// Reset counter at midnight and noon
+schedule("0 0 * * *", () => counter = 0);
+schedule("0 12 * * *", () => counter = 0);

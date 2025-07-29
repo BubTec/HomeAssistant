@@ -1,0 +1,62 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": true,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+const consumptionId = "0_userdata.0.GlobalVars.GlobalWattShelly3EM";
+const consumers = [    {        id: "Heizluefter_oben",        onId: "sonoff.0.DVES_183A0B.POWER",        powerId: "sonoff.0.DVES_183A0B.ENERGY_Power",        warmupTime: 60,    },    {        id: "Heizluefter_unten",        onId: "sonoff.0.DVES_1861B8.POWER",        powerId: "sonoff.0.DVES_1861B8.ENERGY_Power",        warmupTime: 60,    }];
+const warmupConsumers = [];
+let lastConsumerOnTime = 0;
+
+async function calculateAveragePower() {
+    const values = await getStateHistoryAsync(consumptionId, {
+        start: Date.now() - 10000,
+        end: Date.now(),
+        aggregate: "average",
+        count: 1000,
+    });
+    const sum = values.reduce((total, value) => total + value.val, 0);
+    const average = sum / values.length;
+    return average;
+}
+
+async function turnOnConsumer(consumer) {
+    const timeSinceLastConsumerOn = Date.now() - lastConsumerOnTime;
+    const currentPower = await getStateAsync(consumptionId);
+    const averagePower = await calculateAveragePower();
+    const availablePower = Math.max(averagePower - currentPower, 0);
+    if (
+        timeSinceLastConsumerOn > consumer.warmupTime &&
+        availablePower >= consumer.power &&
+        !warmupConsumers.includes(consumer)
+    ) {
+        warmupConsumers.push(consumer);
+        setStateAsync(consumer.onId, true);
+        const power = await getStateAsync(consumer.powerId);
+        consumer.power = power;
+        setTimeout(() => {
+            warmupConsumers.splice(warmupConsumers.indexOf(consumer), 1);
+        }, consumer.warmupTime * 1000);
+        lastConsumerOnTime = Date.now();
+    }
+}
+
+async function turnOffConsumer(consumer) {
+    setStateAsync(consumer.onId, false);
+}
+
+async function checkConsumers() {
+    for (const consumer of consumers) {
+        const state = await getStateAsync(consumer.onId);
+        if (state && !warmupConsumers.includes(consumer)) {
+            turnOffConsumer(consumer);
+        } else if (!state) {
+            turnOnConsumer(consumer);
+        }
+    }
+}
+
+setInterval(checkConsumers, 5000);

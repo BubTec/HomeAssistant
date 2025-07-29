@@ -1,0 +1,114 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+// Variable to trigger update on script start
+const triggerUpdateOnStart = true;
+
+// Function to perform the update process
+async function performUpdate() {
+    try {
+        console.log('Starting update check process...');
+        
+        // Send initial notification
+        await sendTo("telegram.1", {
+            text: "Checking for adapter updates...",
+            parse_mode: "HTML"
+        });
+
+        // Get list of all adapters using getObjectView
+        const objects = await getObjectView("system", "instance", null);
+        console.log('Raw adapter count:', objects?.rows?.length || 0);
+        
+        // Filter for actual adapter instances
+        const adapters = [];
+        if (objects && objects.rows) {
+            for (const row of objects.rows) {
+                const obj = row.value;
+                console.log(`Checking adapter ${row.id}:`, 
+                    obj ? `type=${obj.type}, has_common=${!!obj.common}, has_name=${obj.common?.name}, has_host=${obj.common?.host}` : 'null');
+                
+                if (obj && 
+                    obj.common && 
+                    obj.common.name && 
+                    obj.common.host) {
+                    adapters.push(obj);
+                }
+            }
+        }
+
+        console.log(`Found ${adapters.length} adapter instances`);
+        let updateCount = 0;
+        let updatesAvailable = false;
+
+        // Check each adapter for updates
+        for (const adapter of adapters) {
+            try {
+                const adapterName = adapter.common.name;
+                console.log(`Checking updates for adapter: ${adapterName}`);
+                
+                // Check if update is available
+                const updateInfo = await sendToHost(adapter.common.host, "checkUpdates", {
+                    adapter: adapterName
+                });
+                
+                console.log(`Update check result for ${adapterName}:`, JSON.stringify(updateInfo));
+                
+                if (updateInfo && updateInfo.available) {
+                    console.log(`Update available for ${adapterName}`);
+                    updatesAvailable = true;
+                    // Perform update
+                    console.log(`Starting update for ${adapterName}`);
+                    await sendToHost(adapter.common.host, "upgradeAdapter", {
+                        adapter: adapterName,
+                        version: "latest"
+                    });
+                    updateCount++;
+                    console.log(`Update completed for ${adapterName}`);
+                } else {
+                    console.log(`No update available for ${adapterName}`);
+                }
+            } catch (err) {
+                console.error(`Error checking/updating adapter ${adapter._id}: ${err.message}`);
+                console.error('Full error:', err);
+            }
+        }
+
+        console.log(`Update process finished. Updates available: ${updatesAvailable}, Updated count: ${updateCount}`);
+
+        // Send completion notification
+        if (updatesAvailable) {
+            await sendTo("telegram.1", {
+                text: `Adapter updates completed.\nUpdated ${updateCount} adapters.`,
+                parse_mode: "HTML"
+            });
+        } else {
+            await sendTo("telegram.1", {
+                text: "No updates available for any adapters.",
+                parse_mode: "HTML"
+            });
+        }
+
+    } catch (err) {
+        // Send error notification
+        console.error('Main process error:', err);
+        await sendTo("telegram.1", {
+            text: `Error during adapter updates: ${err.message}`,
+            parse_mode: "HTML"
+        });
+        console.error(err);
+    }
+}
+
+// Run update if triggerUpdateOnStart is true
+if (triggerUpdateOnStart) {
+    console.log('Script started, triggering update check...');
+    performUpdate();
+}
+
+// Schedule: runs once per day at 3 AM
+schedule("0 3 * * *", performUpdate);

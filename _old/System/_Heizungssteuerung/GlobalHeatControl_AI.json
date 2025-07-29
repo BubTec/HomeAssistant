@@ -1,0 +1,1244 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false
+}
+-- do not edit previous lines - END --*/
+// Room configuration
+const ROOMS = {
+    livingRoom: {
+        name: 'Wohnzimmer',
+        heater: '0_userdata.0.max.WZ-Temp',
+        heaterMode: '0_userdata.0.max.WZ-Mode',
+        temperature: 'zigbee.0.00158d0002753723.temperature',
+        window: 'javascript.0.WindowWatcher.Wohnzimmer.WindowIsOpen',
+        movement: '0_userdata.0.Rooms.Wohnzimmer.Movement',
+        offset: 1
+    },
+    office: {
+        name: 'Büro',
+        heater: 'maxcube.0.devices.thermostat_1962f1.setpoint',
+        heaterMode: 'maxcube.0.devices.thermostat_1962f1.mode',
+        temperature: 'zigbee.0.00158d00047b3d0f.temperature',
+        window: 'javascript.0.WindowWatcher.Büro.WindowIsOpen',
+        movement: '0_userdata.0.Rooms.Büro.Movement',
+        offset: 1
+    },
+    kitchen: {
+        name: 'Küche',
+        heater: 'maxcube.0.devices.thermostat_103e7a.setpoint',
+        heaterMode: 'maxcube.0.devices.thermostat_103e7a.mode',
+        temperature: 'maxcube.0.devices.thermostat_103e7a.temp',
+        window: 'javascript.0.WindowWatcher.Küche.WindowIsOpen',
+        movement: '0_userdata.0.Rooms.Küche.Movement',
+        offset: 0
+    },
+    bathroom: {
+        name: 'Badezimmer',
+        heater: '0_userdata.0.max.BAD-Temp',
+        heaterMode: '0_userdata.0.max.BAD-Mode',
+        temperature: 'zigbee.0.00158d0002302763.temperature',
+        window: 'javascript.0.WindowWatcher.Badezimmer.WindowIsOpen',
+        movement: '0_userdata.0.Rooms.Badezimmer.Movement',
+        offset: 1
+    },
+    childRoom: {
+        name: 'Kinderzimmer',
+        heater: 'maxcube.0.devices.thermostat_1964a1.setpoint',
+        heaterMode: 'maxcube.0.devices.thermostat_1964a1.mode',
+        temperature: 'zigbee.0.00158d0004888a3a.temperature',
+        window: 'javascript.0.WindowWatcher.Kinderzimmer.WindowIsOpen',
+        movement: '0_userdata.0.Rooms.Kinderzimmer.Movement',
+        offset: 0,
+        activeTime: { start: '07:00', end: '18:30' }
+    },
+    workshop: {
+        name: 'Werkstatt',
+        heater: 'maxcube.0.devices.thermostat_19ee71.setpoint',
+        heaterMode: 'maxcube.0.devices.thermostat_19ee71.mode',
+        temperature: 'zigbee.0.00158d0004867cb2.temperature',
+        window: 'javascript.0.WindowWatcher.Werkstatt.WindowIsOpen',
+        movement: '0_userdata.0.Rooms.Werkstatt.Movement',
+        offset: -2
+    },
+    bedroom: {
+        name: 'Schlafzimmer',
+        heater: 'maxcube.0.devices.thermostat_1019cc.setpoint',
+        heaterMode: 'maxcube.0.devices.thermostat_1019cc.mode',
+        temperature: 'zigbee.0.00158d000277250b.temperature',
+        window: 'javascript.0.WindowWatcher.Schlafzimmer.WindowIsOpen',
+        movement: '0_userdata.0.Rooms.Schlafzimmer.Movement',
+        offset: +2,
+        eveningBoost: false,
+        activeTime: { start: '08:00', end: '10:00' }
+    }
+};
+
+// Constants for delays and thresholds
+const DELAYS = {
+    WINDOW: 0.5*60000,        // 30 seconds
+    BOOST: 5.5*60000,         // 5.5 minutes
+    INACTIVITY: 30*60000,     // 30 minutes
+    MANUAL_OVERRIDE: 60*60000, // 1 hour
+    STARTUP: 1*60000,         // 1 minute
+    DUTY_CYCLE_WARNING: 30*60000,  // 30 minutes
+    COMMAND_RETRY: 5000,          // 5 seconds
+    MAX_RETRY_TIME: 5*60000,      // 5 minutes
+    MIN_TEMP_CHANGE: 1*60000,     // 1 minute
+    MAX_GATEWAY_STARTUP: 3*60000, // 3 minutes
+    MOVEMENT_CONFIRMATION: 2*60000 // 2 minutes
+};
+
+const THRESHOLDS = {
+    TEMP_MIN: 2,         // Minimum temperature for MAX thermostats
+    TEMP_MAX: 35,        // Maximum temperature for MAX thermostats
+    TEMP_TOLERANCE: 0.5, // Temperature difference tolerance
+    BOOST_DELTA: 3,      // Temperature difference for boost mode
+    DUTY_CYCLE: 95,      // Duty cycle warning threshold
+    WINDOW_RESTORE: 30*60000  // 30 minutes window open threshold
+};
+
+// MAX! Cube adapter state
+let maxCubeAdapterAlive = false;
+let maxCubeConnected = false;
+let queuedActions = [];
+
+// Get initial MAX! Cube adapter state
+maxCubeAdapterAlive = getState('system.adapter.maxcube.0.alive').val;
+maxCubeConnected = getState('maxcube.0.info.connection').val;
+logHeating({name: 'System'}, 'Initial MAX! Cube adapter state', 
+    `Adapter is ${maxCubeAdapterAlive ? 'online' : 'offline'}, Connection is ${maxCubeConnected ? 'established' : 'disconnected'}`);
+
+// Monitor MAX! Cube adapter state
+on({id: 'system.adapter.maxcube.0.alive', change: 'ne'}, function(obj) {
+    maxCubeAdapterAlive = obj.state.val;
+    logHeating({name: 'System'}, 'MAX! Cube adapter state changed', 
+        `Adapter is ${maxCubeAdapterAlive ? 'online' : 'offline'}, Connection is ${maxCubeConnected ? 'established' : 'disconnected'}`);
+    
+    processQueuedActions();
+});
+
+// Monitor MAX! Cube connection state
+on({id: 'maxcube.0.info.connection', change: 'ne'}, async function (obj) {
+    maxCubeConnected = obj.state.val;
+    logHeating({name: 'System'}, 'MAX! Cube connection state changed', 
+        `Adapter is ${maxCubeAdapterAlive ? 'online' : 'offline'}, Connection is ${maxCubeConnected ? 'established' : 'disconnected'}`);
+    
+    if (maxCubeConnected) {
+        // First pass after 15 seconds
+        setTimeout(async () => {
+            logHeating({name: 'System'}, 'First temperature verification pass started');
+            await handleReconnectTemperatures();
+            
+            // Second pass after another 15 seconds to catch any remaining issues
+            setTimeout(async () => {
+                logHeating({name: 'System'}, 'Second temperature verification pass started');
+                await handleReconnectTemperatures();
+            }, 15000);
+        }, 15000);
+    }
+    
+    processQueuedActions();
+});
+
+// Helper function to process queued actions
+function processQueuedActions() {
+    if (maxCubeAdapterAlive && maxCubeConnected && queuedActions.length > 0) {
+        logHeating({name: 'System'}, 'Processing queued actions', 
+            `${queuedActions.length} actions pending`);
+        const actionsToProcess = [...queuedActions];
+        queuedActions = [];
+        actionsToProcess.forEach(action => action());
+    }
+}
+
+// Helper function to execute or queue actions based on adapter state
+async function executeOrQueue(action) {
+    if (!maxCubeAdapterAlive || !maxCubeConnected) {
+        logHeating({name: 'System'}, 'Action queued', 
+            'MAX! Cube adapter is offline or disconnected');
+        queuedActions.push(action);
+        return false;
+    }
+    await action();
+    return true;
+}
+
+// Timer objects for different operations
+const zigbeeTimers = {};
+const heaterTimers = {};
+const modeTimers = {};
+const systemTimers = {};
+const boostTimers = {};
+const verifyTimers = {};
+const queueTimers = {};
+const windowStateTimers = {};
+const roomActivityTimers = {};
+const globalModeTimers = {};
+
+// System state
+let startupDelay = true;
+let dutyCycleWarningActive = false;
+
+// Helper function to cleanup timers
+function clearTimers(room) {
+    const timers = [
+        windowStateTimers,
+        roomActivityTimers,
+        boostTimers,
+        globalModeTimers,
+        heaterTimers,
+        modeTimers
+    ];
+    
+    timers.forEach(timerObj => {
+        if (timerObj[room.name]) {
+            clearTimeout(timerObj[room.name]);
+            timerObj[room.name] = null;
+        }
+    });
+}
+
+// Initialize startup delay
+systemTimers.startupDelay = setTimeout(() => {
+    startupDelay = false;
+    logHeating({name: 'System'}, 'Startup delay completed', 
+        'Now monitoring for manual temperature changes');
+}, DELAYS.STARTUP);
+
+// Monitor MAX duty cycle
+on({id: 'maxcube.0.info.duty_cycle', change: "ne"}, async function (obj) {
+    const dutyCycle = obj.state.val;
+    
+    if (dutyCycle >= THRESHOLDS.DUTY_CYCLE) {
+        logHeating({name: 'System'}, 'High duty cycle warning', 
+            `MAX duty cycle at ${dutyCycle}%!`);
+            
+        // Send warning if not already active
+        if (!dutyCycleWarningActive) {
+            setState("0_userdata.0.GlobalVars.TelegramSystem", 
+                `Warning! MAX duty cycle at ${dutyCycle}%! Starting gateway restart.`);
+            dutyCycleWarningActive = true;
+            
+            // Use the same restart process as 3 AM restart
+            logHeating({name: 'System'}, 'Duty cycle restart initiated');
+            isInRestartPhase = true;
+            storeCurrentSetpoints();
+            setZigbeeStateWithTimer(false);
+            
+            setTimeout(async () => {
+                setZigbeeStateWithTimer(true);
+                setTimeout(() => checkGatewayAndRestore(), 60000);
+            }, 30000);
+            
+            // Reset warning flag after delay
+            systemTimers.dutyCycle = setTimeout(() => {
+                dutyCycleWarningActive = false;
+            }, DELAYS.DUTY_CYCLE_WARNING);
+        }
+    } else {
+        dutyCycleWarningActive = false;
+        if (systemTimers.dutyCycle) {
+            clearTimeout(systemTimers.dutyCycle);
+            systemTimers.dutyCycle = null;
+        }
+    }
+});
+
+// Command queue for MAX thermostats
+const commandQueue = {
+    queue: [],
+    processing: false,
+    lastCommandTime: 0,
+    minDelay: 60000, // Minimum delay between commands (1 minute)
+    
+    async add(command) {
+        this.queue.push(command);
+        if (!this.processing) {
+            this.processing = true;
+            await this.process();
+        }
+    },
+    
+    async process() {
+        while (this.queue.length > 0) {
+            const timeSinceLastCommand = Date.now() - this.lastCommandTime;
+            if (timeSinceLastCommand < this.minDelay) {
+                // Clear any existing queue timer
+                if (queueTimers.delay) {
+                    clearTimeout(queueTimers.delay);
+                    queueTimers.delay = null;
+                }
+                
+                await new Promise(resolve => {
+                    queueTimers.delay = setTimeout(resolve, this.minDelay - timeSinceLastCommand);
+                });
+            }
+            
+            const command = this.queue[0];
+            try {
+                await command();
+                this.lastCommandTime = Date.now();
+            } catch (error) {
+                logHeating({name: 'System'}, 'Command queue error', error.message);
+            }
+            this.queue.shift();
+        }
+        this.processing = false;
+    }
+};
+
+// Helper function to verify state changes
+async function verifyStateChange(id, expectedValue, maxRetries = 3) {
+    const delays = [10000, 30000, 60000];  // 10s, 30s, 60s
+    
+    // Clear any existing verification timer
+    if (verifyTimers[id]) {
+        clearTimeout(verifyTimers[id]);
+        verifyTimers[id] = null;
+    }
+    
+    for (let i = 0; i < maxRetries; i++) {
+        await new Promise(resolve => {
+            verifyTimers[id] = setTimeout(resolve, delays[i]);
+        });
+        
+        const currentValue = getState(id).val;
+        
+        // For temperature setpoints, allow small differences
+        if (id.includes('setpoint')) {
+            if (Math.abs(currentValue - expectedValue) <= THRESHOLDS.TEMP_TOLERANCE) {  // Allow 0.5°C difference
+                return true;
+            }
+        } else if (id.includes('mode')) {
+            // For mode values, handle both numeric and string values
+            const currentMode = getModeValue(currentValue);
+            const expectedMode = getModeValue(expectedValue);
+            if (currentMode === expectedMode) {
+                return true;
+            }
+        } else {
+            if (currentValue === expectedValue) {
+                return true;
+            }
+        }
+        
+        logHeating({name: 'System'}, 'State verification retry', 
+            `${id}: Expected ${expectedValue}, got ${currentValue} (Attempt ${i + 1}/${maxRetries})`);
+    }
+    return false;
+}
+
+// Zigbee switch configuration
+const ZIGBEE_SWITCH = 'zigbee.0.7cb03eaa0a0a3ddb.state';
+
+// Helper function to manage zigbee switch with timer
+function setZigbeeStateWithTimer(state, delay = 0) {
+    // Clear any existing timer
+    if (zigbeeTimers.switch) {
+        clearTimeout(zigbeeTimers.switch);
+        zigbeeTimers.switch = null;
+    }
+
+    if (delay === 0) {
+        setState(ZIGBEE_SWITCH, state);
+        return;
+    }
+
+    zigbeeTimers.switch = setTimeout(() => {
+        setState(ZIGBEE_SWITCH, state);
+    }, delay);
+}
+
+// Helper function to set heater temperature with timer
+async function setHeaterTemp(heater, temp, delay = 0) {
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            // Validate temperature
+            const validTemp = Math.max(THRESHOLDS.TEMP_MIN, Math.min(THRESHOLDS.TEMP_MAX, temp));
+            
+            // Clear any existing timer
+            if (heaterTimers[heater]) {
+                clearTimeout(heaterTimers[heater]);
+                heaterTimers[heater] = null;
+            }
+            
+            // Set temperature with delay if specified
+            if (delay === 0) {
+                setState(heater, validTemp);
+            } else {
+                heaterTimers[heater] = setTimeout(() => {
+                    setState(heater, validTemp);
+                }, delay);
+            }
+            
+            // Verify the change
+            const success = await verifyStateChange(heater, validTemp);
+            if (!success) {
+                throw new Error(`Temperature verification failed for ${heater}`);
+            }
+            return true;
+            
+        } catch (error) {
+            retries--;
+            if (retries === 0) {
+                logHeating({name: 'System'}, 'Critical temperature set error', error.message);
+            }
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
+    return false;
+}
+
+// Helper function to set heater mode with timer
+async function setHeaterMode(heaterMode, mode, delay = 0) {
+    // Check if it's a MAX thermostat
+    const isMaxThermostat = heaterMode.includes('maxcube.0') || heaterMode.includes('max.');
+    
+    // Convert mode to number if it's a string
+    const modeNumber = typeof mode === 'string' ? MODE_VALUES[mode] : parseInt(mode, 10);
+    if (isNaN(modeNumber)) {
+        logHeating({name: heaterMode.split('.').pop()}, 'Error setting mode', 
+            'Invalid mode value: must be a number or valid mode string');
+        return;
+    }
+
+    // Clear any existing timer
+    if (modeTimers[heaterMode]) {
+        clearTimeout(modeTimers[heaterMode]);
+        modeTimers[heaterMode] = null;
+    }
+    
+    if (!isMaxThermostat) {
+        // For non-MAX thermostats, use simple timer
+        if (delay === 0) {
+            setState(heaterMode, modeNumber);
+            return;
+        }
+
+        modeTimers[heaterMode] = setTimeout(() => {
+            setState(heaterMode, modeNumber);
+        }, delay);
+        return;
+    }
+    
+    // For MAX thermostats, use the command queue
+    await executeOrQueue(async () => {
+        await commandQueue.add(async () => {
+            const currentMode = getState(heaterMode).val;
+            const currentModeNum = getModeValue(currentMode);
+            
+            if (currentModeNum === modeNumber) {
+                logHeating({name: heaterMode.split('.').pop()}, 'Mode already set', 
+                    `Current: ${MODE_NAMES[currentModeNum]}`);
+                return;
+            }
+            
+            // Only allow switching between Manual and Boost
+            if (modeNumber !== 1 && modeNumber !== 3) {
+                throw new Error(`Invalid mode: ${modeNumber}. Only MANUAL (1) and BOOST (3) are allowed.`);
+            }
+            
+            logHeating({name: heaterMode.split('.').pop()}, 'Setting mode', 
+                `${MODE_NAMES[currentModeNum]} -> ${MODE_NAMES[modeNumber]} (queued command)`);
+            
+            if (delay === 0) {
+                setState(heaterMode, modeNumber);
+            } else {
+                modeTimers[heaterMode] = setTimeout(() => {
+                    setState(heaterMode, modeNumber);
+                }, delay);
+            }
+            
+            // Verify the change
+            const success = await verifyStateChange(heaterMode, modeNumber);
+            if (!success) {
+                logHeating({name: heaterMode.split('.').pop()}, 'Mode verification failed', 
+                    `Target: ${MODE_NAMES[modeNumber]} not reached after retries`);
+            }
+        });
+    });
+}
+
+// Turn on switch initially with delay
+setZigbeeStateWithTimer(true, 30000);
+
+// Monitor zigbee switch state
+on({id: ZIGBEE_SWITCH, change: "ne"}, async function (obj) {
+    const switchState = obj.state.val;
+    
+    if (!switchState) {
+        logHeating({name: 'System'}, 'Zigbee switch auto-recovery', 
+            'Switch turned off, turning back on in 3 seconds');
+        setZigbeeStateWithTimer(true, 3000);
+    }
+});
+
+// Store last temperatures before window opening
+const lastTemperatures = {};
+
+// Initialize current temperatures at script start
+Object.values(ROOMS).forEach(room => {
+    if (room.heater.includes('maxcube.0')) {
+        const currentTemp = getState(room.heater).val;
+        lastTemperatures[room.heater] = {
+            temp: currentTemp,
+            timestamp: Date.now(),
+            manual: false
+        };
+    }
+});
+
+// Mode mappings
+const MODE_NAMES = {0: 'AUTO', 1: 'MANUAL', 2: 'VACATION', 3: 'BOOST'};  // Map numbers to names
+const MODE_VALUES = {'AUTO': 0, 'MANUAL': 1, 'VACATION': 2, 'BOOST': 3};  // Map names to numbers
+
+// Helper function for random delays
+function mathRandomInt(a, b) {
+    if (a > b) {
+        // Swap a and b to ensure a is smaller.
+        var c = a;
+        a = b;
+        b = c;
+    }
+    return Math.floor(Math.random() * (b - a + 1) + a);
+}
+
+// Helper function to get numeric mode value
+function getModeValue(mode) {
+    return typeof mode === 'number' ? mode : MODE_VALUES[mode] || 0;
+}
+
+// Helper function to get mode string
+function getModeString(mode) {
+    return typeof mode === 'string' ? mode : MODE_NAMES[mode] || 'MANUAL';
+}
+
+// Helper function for consistent logging
+function logHeating(room, action, details = '') {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] ${room.name} - ${action}${details ? ': ' + details : ''}`);
+}
+
+// Helper function to check if temperature data is valid (updated within last hour)
+function isTemperatureDataValid(stateId) {
+    const state = getState(stateId, {ts: true});
+    if (!state || !state.ts) return false;
+    
+    const timeSinceUpdate = Date.now() - state.ts;
+    return timeSinceUpdate <= 60 * 60 * 1000; // 1 hour in milliseconds
+}
+
+// Monitor outdoor temperature sensors
+function monitorOutdoorSensors() {
+    const sensor1Valid = isTemperatureDataValid('zigbee.0.00158d00022fb07f.temperature');
+    const sensor2Valid = isTemperatureDataValid('zigbee.0.00158d00053f0231.temperature');
+    
+    if (!sensor1Valid && !sensor2Valid) {
+        logHeating({name: 'System'}, 'Outdoor sensor warning', 
+            'Both outdoor temperature sensors have outdated data');
+        setState("0_userdata.0.GlobalVars.TelegramSystem", 
+            'Warning: Both outdoor temperature sensors have not updated in over 1 hour!');
+    }
+}
+
+// Schedule sensor monitoring every 2 hours
+schedule('0 */2 * * *', monitorOutdoorSensors);
+
+// Helper function to check if outside temperature is warm
+async function isOutsideWarm() {
+    const validTemperatures = [];
+    const sensor1 = getState('zigbee.0.00158d00022fb07f.temperature', {ts: true});
+    const sensor2 = getState('zigbee.0.00158d00053f0231.temperature', {ts: true});
+    const awayTemp = getState('0_userdata.0.GlobalVars.HeatingAway').val;
+    
+    // Check sensor 1
+    if (isTemperatureDataValid('zigbee.0.00158d00022fb07f.temperature')) {
+        validTemperatures.push(sensor1.val);
+    } else {
+        logHeating({name: 'System'}, 'Sensor data warning', 
+            'Outdoor sensor 1 data is outdated');
+    }
+    
+    // Check sensor 2
+    if (isTemperatureDataValid('zigbee.0.00158d00053f0231.temperature')) {
+        validTemperatures.push(sensor2.val);
+    } else {
+        logHeating({name: 'System'}, 'Sensor data warning', 
+            'Outdoor sensor 2 data is outdated');
+    }
+    
+    // Use OpenWeatherMap as fallback if no valid sensor data
+    if (validTemperatures.length === 0) {
+        logHeating({name: 'System'}, 'Using fallback temperature', 
+            'Switching to OpenWeatherMap data');
+        
+        if (isTemperatureDataValid('openweathermap.0.forecast.current.temperature')) {
+            const owmTemp = getState('openweathermap.0.forecast.current.temperature').val;
+            validTemperatures.push(owmTemp);
+        } else {
+            logHeating({name: 'System'}, 'Critical temperature warning', 
+                'All temperature sources (sensors and OpenWeatherMap) are outdated - assuming cold weather');
+            return false; // Assume it's cold outside
+        }
+    }
+    
+    // Calculate average of valid temperatures
+    const avgTemp = validTemperatures.reduce((a, b) => a + b, 0) / validTemperatures.length;
+    
+    // Temperature must be above threshold
+    const isWarm = avgTemp >= awayTemp - 2 && avgTemp >= awayTemp;
+    
+    logHeating({name: 'System'}, 'Outside temperature check', 
+        `Average temp: ${avgTemp.toFixed(1)}°C from ${validTemperatures.length} sensor(s), ` +
+        `Away temp: ${awayTemp}°C -> ${isWarm ? 'warm' : 'cold'}`);
+    
+    return isWarm;
+}
+
+// Helper function to format duration
+function formatDuration(ms) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+}
+
+// Helper function for random delays (like in old version)
+function getRandomDelay(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
+// Handle window state changes
+async function handleWindowState(room) {
+    try {
+        logHeating(room, 'Window state handler started');
+        
+        // Clear any existing timer
+        if (windowStateTimers[room.name]) {
+            clearTimeout(windowStateTimers[room.name]);
+            windowStateTimers[room.name] = null;
+        }
+        
+        if (await isOutsideWarm()) {
+            logHeating(room, 'Setting minimum temperature due to warm outside');
+            await setHeaterTemp(room.heater, 7);
+            return;
+        }
+
+        const windowOpen = getState(room.window).val;
+        const currentTemp = getState(room.heater).val;
+
+        if (windowOpen) {
+            // Store current temperature before lowering
+            lastTemperatures[room.heater] = {
+                temp: currentTemp,
+                timestamp: Date.now()
+            };
+            
+            if (getModeValue(getState(room.heaterMode).val) === 3) {  // BOOST
+                logHeating(room, 'Deactivating boost mode due to open window');
+                await setHeaterMode(room.heaterMode, 1);  // MANUAL
+            }
+            
+            // Set timer for window open state
+            windowStateTimers[room.name] = setTimeout(async () => {
+                await setHeaterTemp(room.heater, 5);
+            }, DELAYS.WINDOW);  // 30 seconds delay
+            
+        } else {
+            const lastTemp = lastTemperatures[room.heater];
+            if (lastTemp) {
+                const duration = Date.now() - lastTemp.timestamp;
+                logHeating(room, 'Window closed', `Was open for ${formatDuration(duration)}`);
+                
+                if (duration < DELAYS.WINDOW_RESTORE) {  // Less than 10 minutes
+                    logHeating(room, 'Restoring previous temperature', `${lastTemp.temp}°C`);
+                    // Set timer for restoring temperature
+                    windowStateTimers[room.name] = setTimeout(async () => {
+                        await setHeaterTemp(room.heater, lastTemp.temp);
+                        delete lastTemperatures[room.heater];
+                    }, DELAYS.WINDOW);  // 30 seconds delay
+                    return;
+                }
+            }
+
+            const isNightMode = getState('0_userdata.0.GlobalVars.NightHeatingMode').val;
+            const targetTemp = isNightMode ? 
+                getState('0_userdata.0.GlobalVars.HeatingAway').val : 
+                getState('0_userdata.0.GlobalVars.HeatingComfort').val;
+            
+            logHeating(room, `Setting temperature for ${isNightMode ? 'night' : 'day'} mode`, 
+                `${targetTemp}°C + ${room.offset}°C offset`);
+            
+            // Set timer for new temperature
+            windowStateTimers[room.name] = setTimeout(async () => {
+                await setHeaterTemp(room.heater, targetTemp + room.offset);
+            }, DELAYS.WINDOW);  // 30 seconds delay
+        }
+    } catch (error) {
+        logHeating(room, 'Error in window state handler', error.message);
+    }
+}
+
+// Store movement timers
+const movementTimers = {};
+
+// Helper function to handle room activity state
+async function handleRoomActivity(room, isActive) {
+    // Block activity changes during restart
+    if (isInRestartPhase) {
+        logHeating(room, 'Room activity change blocked', 'System in restart phase');
+        return;
+    }
+
+    // Clear any existing inactivity timer
+    if (roomActivityTimers[room.name]) {
+        clearTimeout(roomActivityTimers[room.name]);
+        roomActivityTimers[room.name] = null;
+    }
+
+    if (!isActive) {
+        // Clear any existing movement confirmation timer
+        if (movementTimers[room.name]) {
+            clearTimeout(movementTimers[room.name]);
+            movementTimers[room.name] = null;
+        }
+        
+        // Set timer for inactivity
+        roomActivityTimers[room.name] = setTimeout(async () => {
+            logHeating(room, 'Room inactive', 'No movement for 30 minutes');
+            await setInactiveTemperature(room);
+        }, DELAYS.INACTIVITY); // 30 minutes
+        return;
+    }
+
+    // Start movement confirmation timer
+    if (!movementTimers[room.name]) {
+        movementTimers[room.name] = setTimeout(async () => {
+            logHeating(room, 'Movement confirmed', 'Continuous movement for 2 minutes');
+            // Handle active state after 2 minutes of movement
+            await setActiveTemperature(room);
+            movementTimers[room.name] = null;
+        }, DELAYS.MOVEMENT_CONFIRMATION);
+    }
+}
+
+// Helper function to set temperature for active room
+async function setActiveTemperature(room) {
+    if (await isOutsideWarm()) {
+        logHeating(room, `Setting minimum temperature`, 'Outside temperature is warm');
+        await setHeaterTemp(room.heater, 7);
+        return;
+    }
+
+    const isNightMode = getState('0_userdata.0.GlobalVars.NightHeatingMode').val;
+    const autoHeat = getState('0_userdata.0.GlobalVars.AutoHeat').val;
+    
+    if (isNightMode || !autoHeat) {
+        logHeating(room, `Skipping comfort mode`, 
+            `Night mode: ${isNightMode}, Auto heat: ${autoHeat}`);
+        return;
+    }
+
+    if (getState(room.window).val) {
+        logHeating(room, `Control not possible`, 'Window is open');
+        return;
+    }
+
+    const roomTemp = getState(room.temperature).val;
+    const comfortTemp = getState('0_userdata.0.GlobalVars.HeatingComfort').val;
+    
+    // Set comfort temperature first
+    logHeating(room, `Setting comfort temperature`, 
+        `Target: ${comfortTemp + room.offset}°C`);
+    await setHeaterTemp(room.heater, comfortTemp + room.offset);
+    
+    // Check if boost is needed
+    if (comfortTemp + room.offset - roomTemp >= THRESHOLDS.BOOST_DELTA) {
+        // Wait 30 seconds before activating boost
+        await new Promise(resolve => setTimeout(resolve, 30000));
+        
+        if (getModeValue(getState(room.heaterMode).val) !== 3) {  // Not BOOST
+            logHeating(room, `Activating boost mode`, 
+                `Delta: ${(comfortTemp + room.offset - roomTemp).toFixed(1)}°C`);
+            await setHeaterMode(room.heaterMode, 3);  // BOOST
+            
+            // Clear any existing boost timer
+            if (boostTimers[room.name]) {
+                clearTimeout(boostTimers[room.name]);
+                boostTimers[room.name] = null;
+            }
+            
+            // Check boost mode after 5.5 minutes
+            boostTimers[room.name] = setTimeout(async () => {
+                const currentMode = getModeValue(getState(room.heaterMode).val);
+                if (currentMode === 3) {  // Still in BOOST
+                    logHeating(room, `Deactivating boost mode`, '5.5-minute boost period ended');
+                    await setHeaterMode(room.heaterMode, 1);  // MANUAL
+                } else {
+                    logHeating(room, `Boost mode already deactivated`, 
+                        `Current mode: ${MODE_NAMES[currentMode]}`);
+                }
+            }, DELAYS.BOOST);  // 5.5 minutes
+        }
+    }
+}
+
+// Helper function to set temperature for inactive room
+async function setInactiveTemperature(room) {
+    if (getModeValue(getState(room.heaterMode).val) !== 1) {  // Not MANUAL
+        logHeating(room, 'Deactivating boost mode due to inactivity');
+        await setHeaterMode(room.heaterMode, 1);  // MANUAL
+    }
+    
+    // Check if outside activeTime first
+    if (room.activeTime && !compareTime(room.activeTime.start, room.activeTime.end, 'between')) {
+        logHeating(room, 'Outside active time window', 
+            `Setting away temperature (${room.activeTime.start}-${room.activeTime.end})`);
+        await setHeaterTemp(room.heater, getState('0_userdata.0.GlobalVars.HeatingAway').val + room.offset);
+        return;
+    }
+
+    // Then check night mode
+    const isNightMode = getState('0_userdata.0.GlobalVars.NightHeatingMode').val;
+    if (isNightMode) {
+        logHeating(room, 'Night mode active', 'Setting away temperature');
+        await setHeaterTemp(room.heater, getState('0_userdata.0.GlobalVars.HeatingAway').val + room.offset);
+        return;
+    }
+    
+    // Finally check at home status
+    const isAtHome = getState('0_userdata.0.GlobalVars.AtHome').val;
+    const targetTemp = isAtHome ?
+        getState('0_userdata.0.GlobalVars.HeatingNormal').val :
+        getState('0_userdata.0.GlobalVars.HeatingAway').val;
+        
+    logHeating(room, `Setting temperature for ${isAtHome ? 'home' : 'away'} mode`, 
+        `${targetTemp}°C + ${room.offset}°C offset`);
+    await setHeaterTemp(room.heater, targetTemp + room.offset);
+}
+
+// Replace the old handleComfortMode with the new activity-based system
+async function handleComfortMode(room) {
+    // Block comfort mode changes during restart
+    if (isInRestartPhase) {
+        logHeating(room, 'Comfort mode change blocked', 'System in restart phase');
+        return;
+    }
+
+    // Check for manual override
+    const lastTemp = lastTemperatures[room.heater];
+    if (lastTemp && lastTemp.manual && (Date.now() - lastTemp.timestamp < DELAYS.MANUAL_OVERRIDE)) {  // 1 hour
+        logHeating(room, `Skipping comfort mode`, 'Manual override active');
+        return;
+    }
+
+    // Check if outside activeTime for rooms with activeTime setting
+    if (room.activeTime) {
+        if (!compareTime(room.activeTime.start, room.activeTime.end, 'between')) {
+            logHeating(room, 'Outside active time window', 
+                `Setting away temperature (${room.activeTime.start}-${room.activeTime.end})`);
+            await setHeaterTemp(room.heater, getState('0_userdata.0.GlobalVars.HeatingAway').val + room.offset);
+            return;
+        }
+    }
+
+    const movement = getState(room.movement).val;
+    logHeating(room, `Movement state changed`, `Movement: ${movement}`);
+    
+    await handleRoomActivity(room, movement);
+}
+
+// Handle global mode changes
+async function handleGlobalModeChange(room) {
+    logHeating(room, 'Global mode change handler started');
+    
+    // Clear any existing timer
+    if (globalModeTimers[room.name]) {
+        clearTimeout(globalModeTimers[room.name]);
+        globalModeTimers[room.name] = null;
+    }
+    
+    // Check for manual override first
+    const lastTemp = lastTemperatures[room.heater];
+    if (lastTemp && lastTemp.manual && (Date.now() - lastTemp.timestamp < DELAYS.MANUAL_OVERRIDE)) {  // 1 hour
+        logHeating(room, 'Skipping global mode change', 'Manual override active');
+        return;
+    }
+    
+    // Then check outside temperature
+    if (await isOutsideWarm()) {
+        logHeating(room, 'Setting minimum temperature due to warm outside');
+        await setHeaterTemp(room.heater, 7);
+        return;
+    }
+
+    // Check basic conditions
+    const autoHeat = getState('0_userdata.0.GlobalVars.AutoHeat').val;
+    const windowOpen = getState(room.window).val;
+    
+    if (!autoHeat || windowOpen) {
+        logHeating(room, 'Skipping global mode change', 
+            `Auto heat: ${autoHeat}, Window open: ${windowOpen}`);
+        return;
+    }
+
+    // Check activeTime first (highest priority)
+    if (room.activeTime && !compareTime(room.activeTime.start, room.activeTime.end, 'between')) {
+        logHeating(room, 'Outside active time window', 
+            `Setting away temperature (${room.activeTime.start}-${room.activeTime.end})`);
+        await setHeaterTemp(room.heater, getState('0_userdata.0.GlobalVars.HeatingAway').val + room.offset);
+        return;
+    }
+
+    // Then check night mode
+    const isNightMode = getState('0_userdata.0.GlobalVars.NightHeatingMode').val;
+    if (isNightMode) {
+        logHeating(room, 'Night mode active', 'Setting away temperature');
+        await setHeaterTemp(room.heater, getState('0_userdata.0.GlobalVars.HeatingAway').val + room.offset);
+        return;
+    }
+    
+    // Finally check at home status
+    const isAtHome = getState('0_userdata.0.GlobalVars.AtHome').val;
+    const targetTemp = !isAtHome ? 
+        getState('0_userdata.0.GlobalVars.HeatingAway').val :
+        getState('0_userdata.0.GlobalVars.HeatingNormal').val;
+
+    logHeating(room, `Setting temperature for ${isAtHome ? 'home' : 'away'} mode`, 
+        `${targetTemp}°C + ${room.offset}°C offset`);
+    
+    // Set timer with random delay
+    const delay = mathRandomInt(1, 1000);
+    globalModeTimers[room.name] = setTimeout(async () => {
+        await setHeaterTemp(room.heater, targetTemp + room.offset);
+    }, delay);
+}
+
+// Set up event listeners for each room (replace the old movement handlers)
+Object.values(ROOMS).forEach(room => {
+    // Window state changes remain the same
+    on({ id: room.window, change: 'ne' }, () => {
+        logHeating(room, 'Window state change detected');
+        handleWindowState(room);
+    });
+    
+    // New movement detection with activity system
+    if (room.activeTime) {
+        // Special handling for rooms with active time windows
+        on({ id: room.movement, change: 'ne' }, () => {
+            logHeating(room, 'Movement detected', 
+                `Checking time window: ${room.activeTime.start}-${room.activeTime.end}`);
+            if (compareTime(room.activeTime.start, room.activeTime.end, 'between')) {
+                logHeating(room, 'Movement handling active - within time window');
+                handleComfortMode(room);
+            } else {
+                logHeating(room, 'Movement handling skipped - outside time window');
+            }
+        });
+    } else {
+        on({ id: room.movement, change: 'ne' }, () => {
+            logHeating(room, 'Movement detected');
+            handleComfortMode(room);
+        });
+    }
+});
+
+// Helper function to check if temperature matches any predefined value
+function isPredefinedTemperature(temp, room) {
+    const predefinedTemps = [
+        getState('0_userdata.0.GlobalVars.HeatingComfort').val + room.offset,
+        getState('0_userdata.0.GlobalVars.HeatingNormal').val + room.offset,
+        getState('0_userdata.0.GlobalVars.HeatingAway').val + room.offset,
+        5,  // Minimum temperature for window open
+        7   // Minimum temperature for warm outside
+    ];
+    
+    return predefinedTemps.some(predefined => 
+        Math.abs(predefined - temp) <= THRESHOLDS.TEMP_TOLERANCE
+    );
+}
+
+// Monitor manual thermostat changes
+Object.values(ROOMS).forEach(room => {
+    if (room.heater.includes('maxcube.0')) {
+        // Monitor temperature changes
+        on({ id: room.heater, change: 'ne' }, (obj) => {
+            if (startupDelay) return;  // Skip during startup delay
+            
+            if (!obj.state.from || !obj.state.from.includes('script.js.')) {  // Change not from our script
+                const newTemp = obj.state.val;
+                
+                // Only consider it manual if it doesn't match any predefined temperature
+                if (!isPredefinedTemperature(newTemp, room)) {
+                    logHeating(room, 'Manual temperature change detected', 
+                        `New temperature: ${newTemp}°C (non-predefined value)`);
+                    // Store as last temperature to prevent automatic changes from overwriting
+                    lastTemperatures[room.heater] = {
+                        temp: newTemp,
+                        timestamp: Date.now(),
+                        manual: true
+                    };
+                } else {
+                    logHeating(room, 'Temperature change ignored', 
+                        `${newTemp}°C matches a predefined value`);
+                }
+            }
+        });
+    }
+});
+
+// Global mode changes
+on({ id: ['0_userdata.0.GlobalVars.AtHome', '0_userdata.0.GlobalVars.NightHeatingMode'], change: 'ne' }, () => {
+    logHeating({name: 'System'}, 'Global mode change detected', 
+        `AtHome: ${getState('0_userdata.0.GlobalVars.AtHome').val}, ` +
+        `NightMode: ${getState('0_userdata.0.GlobalVars.NightHeatingMode').val}`);
+    Object.values(ROOMS).forEach(room => handleGlobalModeChange(room));
+});
+
+// Special evening schedules
+schedule('0 19 * * *', () => {
+    logHeating({name: 'System'}, 'Evening schedule started');
+    
+    if (!getState('0_userdata.0.GlobalVars.AtHome').val) {
+        logHeating({name: 'System'}, 'Evening schedule skipped - not at home');
+        return;
+    }
+    
+    // Handle all rooms with evening boost
+    Object.values(ROOMS).forEach(room => {
+        if (room.eveningBoost) {
+            logHeating(room, 'Starting evening boost');
+            setHeaterTemp(room.heater, 
+                getState('0_userdata.0.GlobalVars.HeatingComfort').val + room.offset);
+                
+            // Reset after 2 hours if temperature hasn't been changed
+            setTimeout(() => {
+                logHeating(room, 'Checking evening boost reset');
+                const currentTemp = getState(room.heater).val;
+                const comfortTemp = getState('0_userdata.0.GlobalVars.HeatingComfort').val + room.offset;
+                
+                if (currentTemp === comfortTemp) {
+                    logHeating(room, 'Resetting after evening boost');
+                    setHeaterTemp(room.heater, 
+                        getState('0_userdata.0.GlobalVars.HeatingNormal').val + room.offset);
+                } else {
+                    logHeating(room, 'Evening boost reset skipped - temperature was manually changed');
+                }
+            }, 2 * 60 * 60 * 1000);
+        }
+    });
+});
+
+// Prevent AUTO mode on all thermostats
+on({id: [].concat(Array.prototype.slice.apply($("state[state.id=maxcube.0.devices.*.mode]"))), change: "ne"}, async function (obj) {
+    let value = obj.state.val;
+    if (value === 0) {  // AUTO mode
+        logHeating({name: 'System'}, 'Preventing AUTO mode', 
+            `Thermostat ${obj.id} switched to AUTO. Setting back to MANUAL.`);
+        // Random delay between 5-65 seconds
+        const delay = 5000 + mathRandomInt(1, 60000);
+        
+        // Clear any existing timer
+        if (modeTimers[obj.id]) {
+            clearTimeout(modeTimers[obj.id]);
+            modeTimers[obj.id] = null;
+        }
+        
+        modeTimers[obj.id] = setTimeout(() => {
+            setState(obj.id, 1);
+        }, delay);
+    }
+});
+
+const BOOST_CONDITIONS = {
+    MIN_TEMP_DIFF: 2,    // Mindesttemperaturdifferenz für Boost
+    MAX_DAILY_BOOSTS: 5  // Maximale Anzahl Boosts pro Tag
+};
+
+// Helper function to restore temperatures after reconnect
+async function handleReconnectTemperatures() {
+    Object.values(ROOMS).forEach(async room => {
+        if (room.heater.includes('maxcube.0')) {
+            const currentTemp = getState(room.heater).val;
+            
+            // Check if temperature is suspiciously low (0°C or 2°C)
+            if (currentTemp <= 2) {
+                logHeating(room, 'Suspicious temperature after reconnect', 
+                    `Current: ${currentTemp}°C - Restoring correct temperature`);
+                
+                // Determine correct temperature based on current state
+                const isNightMode = getState('0_userdata.0.GlobalVars.NightHeatingMode').val;
+                const isAtHome = getState('0_userdata.0.GlobalVars.AtHome').val;
+                const windowOpen = getState(room.window).val;
+                const movement = getState(room.movement).val;
+                
+                let targetTemp;
+                
+                if (windowOpen) {
+                    targetTemp = 5;  // Window open temperature
+                } else if (await isOutsideWarm()) {
+                    targetTemp = 7;  // Warm outside temperature
+                } else if (movement && !isNightMode) {
+                    targetTemp = getState('0_userdata.0.GlobalVars.HeatingComfort').val + room.offset;
+                } else {
+                    targetTemp = (isNightMode || !isAtHome) ? 
+                        getState('0_userdata.0.GlobalVars.HeatingAway').val + room.offset :
+                        getState('0_userdata.0.GlobalVars.HeatingNormal').val + room.offset;
+                }
+                
+                logHeating(room, 'Restoring temperature', `Setting to ${targetTemp}°C`);
+                await setHeaterTemp(room.heater, targetTemp);
+            }
+        }
+    });
+}
+
+// Store setpoints before restart
+let storedSetpoints = {};
+let isInRestartPhase = false;
+let restartMonitorTimer = null;
+
+// Helper function to store current setpoints
+function storeCurrentSetpoints() {
+    Object.values(ROOMS).forEach(room => {
+        if (room.heater) {
+            const currentTemp = getState(room.heater).val;
+            storedSetpoints[room.heater] = currentTemp;
+        }
+    });
+    logHeating({name: 'System'}, 'Stored setpoints', 
+        `Saved ${Object.keys(storedSetpoints).length} temperatures before restart`);
+}
+
+// Helper function to restore setpoint with retries
+async function restoreSetpoint(heater, temperature, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            await new Promise((resolve) => {
+                setTimeout(async () => {
+                    await setHeaterTemp(heater, temperature);
+                    const currentTemp = getState(heater).val;
+                    
+                    if (Math.abs(currentTemp - temperature) <= THRESHOLDS.TEMP_TOLERANCE) {
+                        logHeating({name: 'System'}, 'Restored setpoint', 
+                            `${heater}: ${temperature}°C (Attempt ${attempt}/${maxRetries})`);
+                        resolve(true);
+                        return;
+                    }
+                    
+                    if (attempt === maxRetries) {
+                        logHeating({name: 'System'}, 'Failed to restore setpoint', 
+                            `${heater}: Target ${temperature}°C, Current ${currentTemp}°C`);
+                    }
+                    resolve(false);
+                }, 10000); // 10 second delay between attempts
+            });
+        } catch (error) {
+            logHeating({name: 'System'}, 'Error restoring setpoint', 
+                `${heater}: ${error.message} (Attempt ${attempt}/${maxRetries})`);
+        }
+    }
+}
+
+// Helper function to check gateway and restore temperatures
+async function checkGatewayAndRestore(attempt = 1) {
+    if (attempt > 30) { // Stop after 30 minutes
+        logHeating({name: 'System'}, 'Gateway restore timeout', 
+            'Maximum attempts reached (30 minutes)');
+        isInRestartPhase = false;
+        return;
+    }
+
+    if (!maxCubeAdapterAlive || !maxCubeConnected) {
+        logHeating({name: 'System'}, 'Gateway not ready', 
+            `Attempt ${attempt}/30 - Will retry in 1 minute`);
+        setTimeout(() => checkGatewayAndRestore(attempt + 1), 60000);
+        return;
+    }
+
+    // Gateway is ready, try to restore temperatures
+    logHeating({name: 'System'}, 'Gateway ready', 'Starting temperature restore');
+    
+    // Try restore every 5 minutes for the remaining time
+    const remainingMinutes = 30 - attempt;
+    const restoreAttempts = Math.floor(remainingMinutes / 5);
+    
+    for (let restoreAttempt = 1; restoreAttempt <= restoreAttempts; restoreAttempt++) {
+        logHeating({name: 'System'}, 'Starting restore attempt', 
+            `Attempt ${restoreAttempt}/${restoreAttempts}`);
+            
+        // Restore temperatures one by one
+        for (const [heater, temp] of Object.entries(storedSetpoints)) {
+            await restoreSetpoint(heater, temp);
+        }
+        
+        // Check if all temperatures are restored correctly
+        const allRestored = Object.entries(storedSetpoints).every(([heater, temp]) => {
+            const currentTemp = getState(heater).val;
+            return Math.abs(currentTemp - temp) <= THRESHOLDS.TEMP_TOLERANCE;
+        });
+        
+        if (allRestored) {
+            logHeating({name: 'System'}, 'All temperatures restored successfully');
+            isInRestartPhase = false;
+            storedSetpoints = {};
+            return;
+        }
+        
+        // Wait 5 minutes before next attempt
+        if (restoreAttempt < restoreAttempts) {
+            logHeating({name: 'System'}, 'Not all temperatures restored', 
+                `Waiting 5 minutes before next attempt`);
+            await new Promise(resolve => setTimeout(resolve, 5 * 60000));
+        }
+    }
+    
+    // If we get here, we couldn't restore all temperatures
+    logHeating({name: 'System'}, 'Restore process completed', 
+        'Some temperatures may not have been restored correctly');
+    isInRestartPhase = false;
+    storedSetpoints = {};
+}
+
+// Modified 3 AM restart schedule
+schedule("0 3 * * *", async function () {
+    logHeating({name: 'System'}, 'Daily maintenance started', 
+        'Storing current temperatures and preparing restart');
+    
+    // Set restart phase flag
+    isInRestartPhase = true;
+    
+    // Store current temperatures
+    storeCurrentSetpoints();
+    
+    // Turn off Zigbee switch
+    setZigbeeStateWithTimer(false);
+    
+    // Wait 30 seconds and turn it back on
+    setTimeout(async () => {
+        setZigbeeStateWithTimer(true);
+        
+        // Start monitoring gateway state
+        setTimeout(() => checkGatewayAndRestore(), 60000);
+    }, 30000);
+});
+
+// Modify temperature setting functions to respect restart phase
+const originalSetHeaterTemp = setHeaterTemp; 
+setHeaterTemp = async function(heater, temp, delay = 0) {
+    if (isInRestartPhase) {
+        logHeating({name: 'System'}, 'Temperature change blocked', 
+            'System is in restart phase');
+        return;
+    }
+    return await originalSetHeaterTemp(heater, temp, delay);
+};
+
+// Schedule regular temperature checks
+schedule('*/15 * * * *', () => {  // Every 15 minutes
+    logHeating({name: 'System'}, 'Starting scheduled temperature verification');
+    Object.values(ROOMS).forEach(room => handleGlobalModeChange(room));
+});

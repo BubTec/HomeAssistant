@@ -1,0 +1,16 @@
+{
+  "common": {
+    "name": "_BACKUP_",
+    "expert": true
+  },
+  "type": "channel",
+  "_id": "script.js.System._BACKUP_",
+  "acl": {
+    "object": 1636,
+    "owner": "system.user.admin",
+    "ownerGroup": "system.group.administrator"
+  },
+  "from": "system.adapter.javascript.0",
+  "user": "system.user.admin",
+  "ts": 1673611962793
+}
