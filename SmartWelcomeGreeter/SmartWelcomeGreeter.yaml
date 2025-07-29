@@ -32,21 +32,27 @@ blueprint:
         entity:
           domain: binary_sensor
     
-    waste_yellow_today:
-      name: "Yellow Waste Collection Today (Optional)"
-      description: "Binary sensor indicating if yellow waste collection is today"
+    waste_calendar:
+      name: "Waste Collection Calendar (Optional)"
+      description: "Calendar entity from Waste Collection Schedule integration"
       default: ""
       selector:
         entity:
-          domain: binary_sensor
+          domain: calendar
     
-    waste_black_today:
-      name: "Black Waste Collection Today (Optional)"
-      description: "Binary sensor indicating if black waste collection is today"  
-      default: ""
+    yellow_waste_keywords:
+      name: "Yellow Waste Keywords"
+      description: "Keywords to identify yellow waste collection (comma separated)"
       selector:
-        entity:
-          domain: binary_sensor
+        text:
+      default: "yellow,gelb,gelber sack,papier,paper"
+    
+    black_waste_keywords:
+      name: "Black Waste Keywords"
+      description: "Keywords to identify black waste collection (comma separated)"
+      selector:
+        text:
+      default: "black,schwarz,restmüll,biomüll,organic,general"
     
     open_windows_sensor:
       name: "Open Windows Sensor (Optional)"
@@ -252,8 +258,9 @@ blueprint:
 variables:
   # Helper variables for notifications
   mailbox_entity: !input mailbox_sensor
-  waste_yellow_entity: !input waste_yellow_today
-  waste_black_entity: !input waste_black_today
+  waste_calendar_entity: !input waste_calendar
+  yellow_keywords: !input yellow_waste_keywords
+  black_keywords: !input black_waste_keywords
   windows_entity: !input open_windows_sensor
   windows_list_entity: !input open_windows_list
   slave_motion_entity: !input slave_motion_sensor
@@ -280,15 +287,25 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {% set counter_today = states(daily_counter) | int(0) %}
+      {% set counter_today = states(daily_counter) | int(0) if daily_counter else 0 %}
       {% set max_daily = max_daily_info | int(3) %}
       {% set lockout_minutes = lockout_duration | int(15) %}
       {% set last_triggered = state_attr('automation.' + this.entity_id.split('.')[1], 'last_triggered') %}
       {% set lockout_expired = last_triggered == none or (now() - last_triggered).total_seconds() > (lockout_minutes * 60) %}
+      {% set has_waste_today = false %}
+      {% if waste_calendar_entity %}
+        {% set calendar_event = states(waste_calendar_entity) %}
+        {% set event_summary = state_attr(waste_calendar_entity, 'message') | lower %}
+        {% set event_today = state_attr(waste_calendar_entity, 'start_time')[:10] == now().strftime('%Y-%m-%d') %}
+        {% if calendar_event == 'on' and event_today and event_summary %}
+          {% set yellow_words = yellow_keywords.split(',') | map('trim') | map('lower') | list %}
+          {% set black_words = black_keywords.split(',') | map('trim') | map('lower') | list %}
+          {% set has_waste_today = yellow_words | select('in', event_summary) | list | length > 0 or black_words | select('in', event_summary) | list | length > 0 %}
+        {% endif %}
+      {% endif %}
       {{ lockout_expired and (counter_today < max_daily or not (
         (mailbox_entity and is_state(mailbox_entity, 'on')) or
-        (waste_yellow_entity and is_state(waste_yellow_entity, 'on')) or
-        (waste_black_entity and is_state(waste_black_entity, 'on'))
+        has_waste_today
       )) }}
 
 action:
@@ -300,9 +317,21 @@ action:
               - condition: template
                 value_template: "{{ mailbox_entity and is_state(mailbox_entity, 'on') }}"
               - condition: template
-                value_template: "{{ waste_yellow_entity and is_state(waste_yellow_entity, 'on') }}"
-              - condition: template
-                value_template: "{{ waste_black_entity and is_state(waste_black_entity, 'on') }}"
+                value_template: >
+                  {% if waste_calendar_entity %}
+                    {% set calendar_event = states(waste_calendar_entity) %}
+                    {% set event_summary = state_attr(waste_calendar_entity, 'message') | lower %}
+                    {% set event_today = state_attr(waste_calendar_entity, 'start_time')[:10] == now().strftime('%Y-%m-%d') %}
+                    {% if calendar_event == 'on' and event_today and event_summary %}
+                      {% set yellow_words = yellow_keywords.split(',') | map('trim') | map('lower') | list %}
+                      {% set black_words = black_keywords.split(',') | map('trim') | map('lower') | list %}
+                      {{ yellow_words | select('in', event_summary) | list | length > 0 or black_words | select('in', event_summary) | list | length > 0 }}
+                    {% else %}
+                      false
+                    {% endif %}
+                  {% else %}
+                    false
+                  {% endif %}
               - condition: and
                 conditions:
                   - condition: template
@@ -320,11 +349,22 @@ action:
                 {% if mailbox_entity and is_state(mailbox_entity, 'on') %}
                   {% set texts = texts + [mail_notifications | random] %}
                 {% endif %}
-                {% if waste_yellow_entity and is_state(waste_yellow_entity, 'on') %}
-                  {% set texts = texts + [waste_yellow_notifications | random] %}
-                {% endif %}
-                {% if waste_black_entity and is_state(waste_black_entity, 'on') %}
-                  {% set texts = texts + [waste_black_notifications | random] %}
+                {% if waste_calendar_entity %}
+                  {% set calendar_event = states(waste_calendar_entity) %}
+                  {% set event_summary = state_attr(waste_calendar_entity, 'message') | lower %}
+                  {% set event_today = state_attr(waste_calendar_entity, 'start_time')[:10] == now().strftime('%Y-%m-%d') %}
+                  {% if calendar_event == 'on' and event_today and event_summary %}
+                    {% set yellow_words = yellow_keywords.split(',') | map('trim') | map('lower') | list %}
+                    {% set black_words = black_keywords.split(',') | map('trim') | map('lower') | list %}
+                    {% set has_yellow = yellow_words | select('in', event_summary) | list | length > 0 %}
+                    {% set has_black = black_words | select('in', event_summary) | list | length > 0 %}
+                    {% if has_yellow %}
+                      {% set texts = texts + [waste_yellow_notifications | random] %}
+                    {% endif %}
+                    {% if has_black %}
+                      {% set texts = texts + [waste_black_notifications | random] %}
+                    {% endif %}
+                  {% endif %}
                 {% endif %}
                 {% if windows_entity and is_state(windows_entity, 'on') and slave_motion_entity and is_state(slave_motion_entity, 'on') %}
                   {% set rooms = states(windows_list_entity) if windows_list_entity else "some rooms" %}
@@ -355,9 +395,13 @@ action:
                       message: "{{ combined_message }}"
           
           # Increment daily counter
-          - service: counter.increment
-            target:
-              entity_id: !input daily_counter
+          - if:
+              - condition: template
+                value_template: "{{ daily_counter != '' }}"
+            then:
+              - service: counter.increment
+                target:
+                  entity_id: "{{ daily_counter }}"
       
       # Random greeting when no slave motion and random chance
       - conditions:
