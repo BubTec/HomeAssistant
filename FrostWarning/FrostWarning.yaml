@@ -223,7 +223,7 @@ blueprint:
     warning_days:
       name: Warning Days
       description: Days of the week to send warnings (1=Monday, 7=Sunday)
-      default: [1, 2, 3, 4, 5]
+      default: "weekdays"
       selector:
         select:
           options:
@@ -272,7 +272,7 @@ blueprint:
           max: 24
           unit_of_measurement: hours
           mode: slider
-          step: 1
+          step: "1"
     
     enable_fallback_sensor:
       name: Enable Fallback Sensor
@@ -291,7 +291,7 @@ blueprint:
           max: 10
           unit_of_measurement: °C
           mode: slider
-          step: 0.5
+          step: "0.5"
 
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/FrostWarning/FrostWarning.yaml
 
