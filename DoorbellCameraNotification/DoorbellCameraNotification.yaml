@@ -206,10 +206,9 @@ action:
                     entity_id: "{{ screen_switch }}"
                     
             - action: fully_kiosk.load_url
-              target:
-                entity_id: "{{ repeat.item }}"
               data:
                 url: "{{ kiosk_url }}"
+                entity_id: "{{ repeat.item }}"
   
   - alias: "Wait for door opener action"
     wait_for_trigger:
@@ -240,9 +239,8 @@ action:
                 tablet_name: "{{ repeat.item.split('.')[1] }}"
                 
             - action: fully_kiosk.load_url
-              target:
-                entity_id: "{{ repeat.item }}"
               data:
                 url: "{{ normal_url }}"
+                entity_id: "{{ repeat.item }}"
 
 mode: single 
