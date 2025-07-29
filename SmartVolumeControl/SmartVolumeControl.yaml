@@ -1,21 +1,64 @@
 blueprint:
   name: Smart Alexa Echo Volume Control
   description: >
-    Automatically adjusts volume levels of Alexa Echo devices based on mode changes (night mode, presence detection, etc.).
+    Automatically adjusts volume levels of Alexa Echo devices based on time schedules.
     Works with Home Assistant's Alexa Media Player integration to control Echo volume entities.
-    Improved version with proper filtering for Alexa Media Player devices.
+    Improved version with time-based triggers instead of entity-based triggers.
   domain: automation
   input:
-    mode_entity:
-      name: Mode Control Entity
-      description: Entity that triggers volume changes (e.g., night mode helper, presence sensor)
+    night_mode_start:
+      name: Night Mode Start Time
+      description: Time when night mode (low volume) starts
       selector:
-        entity:
-          domain: 
-            - input_boolean
-            - binary_sensor
-            - sensor
-            - switch
+        time: {}
+      default: "22:00"
+    
+    night_mode_end:
+      name: Night Mode End Time
+      description: Time when night mode (low volume) ends
+      selector:
+        time: {}
+      default: "07:00"
+    
+    active_days:
+      name: Active Days
+      description: Days when volume control is active
+      selector:
+        select:
+          options:
+            - label: "Every Day"
+              value: "everyday"
+            - label: "Weekdays Only"
+              value: "weekdays"
+            - label: "Weekends Only"
+              value: "weekends"
+            - label: "Custom"
+              value: "custom"
+          multiple: false
+      default: "everyday"
+    
+    custom_days:
+      name: Custom Days
+      description: Select specific days (only used if 'Custom' is selected above)
+      selector:
+        select:
+          options:
+            - label: "Monday"
+              value: "1"
+            - label: "Tuesday"
+              value: "2"
+            - label: "Wednesday"
+              value: "3"
+            - label: "Thursday"
+              value: "4"
+            - label: "Friday"
+              value: "5"
+            - label: "Saturday"
+              value: "6"
+            - label: "Sunday"
+              value: "7"
+          multiple: true
+      default: []
     
     echo_entities:
       name: Echo Volume Entities
@@ -28,8 +71,8 @@ blueprint:
       default: []
     
     low_volume:
-      name: Low Volume Level
-      description: Volume level when mode is active (0-100)
+      name: Night Mode Volume Level
+      description: Volume level during night mode (0-100)
       selector:
         number:
           min: 0
@@ -40,8 +83,8 @@ blueprint:
       default: 20
     
     high_volume:
-      name: High Volume Level  
-      description: Volume level when mode is inactive (0-100)
+      name: Day Mode Volume Level  
+      description: Volume level during day mode (0-100)
       selector:
         number:
           min: 0
@@ -80,8 +123,8 @@ blueprint:
       default: ""
     
     special_low_volume:
-      name: Special Device Low Volume
-      description: Special Echo device volume when mode is active (0-100)
+      name: Special Device Night Volume
+      description: Special Echo device volume during night mode (0-100)
       selector:
         number:
           min: 0
@@ -92,8 +135,8 @@ blueprint:
       default: 30
     
     special_high_volume:
-      name: Special Device High Volume
-      description: Special Echo device volume when mode is inactive (0-100)
+      name: Special Device Day Volume
+      description: Special Echo device volume during day mode (0-100)
       selector:
         number:
           min: 0
@@ -137,7 +180,10 @@ blueprint:
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/SmartVolumeControl/SmartVolumeControl.yaml
 
 variables:
-  mode_entity: !input mode_entity
+  night_mode_start: !input night_mode_start
+  night_mode_end: !input night_mode_end
+  active_days_input: !input active_days
+  custom_days_input: !input custom_days
   echo_entities: !input echo_entities
   low_volume: !input low_volume
   high_volume: !input high_volume
@@ -149,35 +195,51 @@ variables:
   use_random_delay: !input use_random_delay
   max_delay: !input max_delay
   special_delay: !input special_delay
+  
+  # Calculate active days
+  active_days: >-
+    {% if active_days_input == "weekdays" %}
+      [1, 2, 3, 4, 5]
+    {% elif active_days_input == "everyday" %}
+      [1, 2, 3, 4, 5, 6, 7]
+    {% elif active_days_input == "weekends" %}
+      [6, 7]
+    {% elif active_days_input == "custom" %}
+      {{ custom_days_input | map('int') | list }}
+    {% else %}
+      [1, 2, 3, 4, 5, 6, 7]
+    {% endif %}
 
 trigger:
-  - platform: state
-    entity_id: !input mode_entity
-    id: "mode_change"
+  # Night mode starts
+  - platform: time
+    at: !input night_mode_start
+    id: "night_mode_start"
+  
+  # Night mode ends (day mode starts)
+  - platform: time
+    at: !input night_mode_end
+    id: "day_mode_start"
 
 condition:
-  # Only trigger when the entity actually changes state (not just attributes)
+  # Check if today is an active day
   - condition: template
-    value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
+    value_template: >
+      {% set today = now().isoweekday() %}
+      {{ today in active_days }}
 
 action:
   - variables:
-      # Determine if mode is active (various entity types)
-      mode_active: >
-        {% if mode_entity.startswith('input_boolean.') or mode_entity.startswith('switch.') %}
-          {{ is_state(mode_entity, 'on') }}
-        {% elif mode_entity.startswith('binary_sensor.') %}
-          {{ is_state(mode_entity, 'on') }}
-        {% else %}
-          {{ states(mode_entity) in ['on', 'true', 'active', 'home'] }}
-        {% endif %}
+      # Determine if we're entering night mode or day mode
+      is_night_mode: >
+        {{ trigger.id == "night_mode_start" }}
       
-      # Get target volume based on mode
+      # Get target volumes based on mode
       target_volume: >
-        {{ special_low_volume if mode_active else special_high_volume }}
+        {{ (special_low_volume if is_night_mode else special_high_volume) }}
       
       normal_volume: >
-        {{ low_volume if mode_active else high_volume }}
+        {{ (low_volume if is_night_mode else high_volume) }}
       
       # Get patterns to ignore
       ignore_pattern_list: >
