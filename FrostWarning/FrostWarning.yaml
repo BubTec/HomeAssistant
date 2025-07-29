@@ -126,63 +126,41 @@ condition:
       {{ today in warning_days }}
 
 action:
-  - alias: "Check frost forecast and send warning"
+  - alias: "Send frost warning notification"
     sequence:
-      # Get frost forecast from API
-      - alias: "Get frost forecast from API"
-        service: http.get
-        data:
-          url: >-
-            https://api.eiswarnung.de?key={{ frost_api_key }}&lat={{ lat }}&lng={{ lng }}
-          timeout: 10
-        response_variable: api_response
-      
-      # Send notification if frost detected
-      - alias: "Send frost warning notification"
-        if:
-          - condition: template
-            value_template: >
-              {% set data = api_response | from_json %}
-              {% set forecast_id = data.result.forecastId %}
-              {{ forecast_id in [1, 2] }}
-        then:
-          - variables:
-              data: "{{ api_response | from_json }}"
-              forecast_id: "{{ data.result.forecastId }}"
-              warning_message: >-
-                {% if forecast_id == 1 %}
-                  You need to scrape your windshield today before driving! 
-                  Location: {{ location_name }}
-                {% elif forecast_id == 2 %}
-                  You might need to scrape your windshield today before driving! 
-                  Location: {{ location_name }}
-                {% endif %}
-              timestamp: "{{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}"
-          
-          - repeat:
-              for_each: "{{ notification_targets }}"
-              sequence:
-                - service: notify.send_message
-                  target: "{{ repeat.item }}"
-                  data:
-                    title: "{{ notification_title }}"
-                    message: "{{ warning_message }}"
+      # Send notification with frost warning
+      - repeat:
+          for_each: "{{ notification_targets }}"
+          sequence:
+            - service: notify.send_message
+              target: "{{ repeat.item }}"
+              data:
+                title: "{{ notification_title }}"
+                message: >-
+                  {% set url = 'https://api.eiswarnung.de?key=' + frost_api_key + '&lat=' + lat|string + '&lng=' + lng|string %}
+                  {% set response = url | urlopen %}
+                  {% set data = response | from_json %}
+                  {% set forecast_id = data.result.forecastId %}
+                  {% if forecast_id == 1 %}
+                    You need to scrape your windshield today before driving! 
+                    Location: {{ location_name }}
+                    Frost level: {{ forecast_id }}
+                  {% elif forecast_id == 2 %}
+                    You might need to scrape your windshield today before driving! 
+                    Location: {{ location_name }}
+                    Frost level: {{ forecast_id }}
+                  {% else %}
+                    No frost warning needed today.
+                    Location: {{ location_name }}
+                    Frost level: {{ forecast_id }}
+                  {% endif %}
       
       # Log warning sent
-      - alias: "Log frost warning sent"
-        if:
-          - condition: template
-            value_template: >
-              {% set data = api_response | from_json %}
-              {% set forecast_id = data.result.forecastId %}
-              {{ forecast_id in [1, 2] }}
-        then:
-          - service: persistent_notification.create
-            data:
-              title: "Frost Warning Sent"
-              message: >
-                Frost warning sent at {{ timestamp }}.
-                Location: {{ location_name }}
-                Frost level: {{ forecast_id }}
+      - service: persistent_notification.create
+        data:
+          title: "Frost Warning Checked"
+          message: >
+            Frost warning check completed at {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+            Location: {{ location_name }}
 
 mode: single 
