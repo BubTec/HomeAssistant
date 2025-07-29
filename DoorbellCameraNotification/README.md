@@ -8,8 +8,10 @@ A Home Assistant blueprint that sends actionable notifications with camera snaps
 - 📱 **Mobile Notifications**: Sends notifications to your mobile devices with the camera snapshot
 - 🚪 **Door Opener**: Includes an action button to remotely open the door
 - 🎛️ **Dashboard Integration**: Clicking the notification opens your specified dashboard view
-- 🔊 **Custom Sounds**: Configurable notification sounds for iOS devices
+- 🔊 **Custom Sounds**: Configurable notification sounds for iOS and Android devices
 - ⏱️ **Timeout Control**: Configurable timeout for notification actions
+- 📺 **Fully Kiosk Integration**: Automatically redirects tablet displays to doorbell dashboard
+- 🌟 **Auto-Return**: Tablets automatically return to original view after configurable timeout
 
 ## Requirements
 
@@ -18,6 +20,7 @@ A Home Assistant blueprint that sends actionable notifications with camera snaps
 - A trigger entity (switch, binary_sensor, button, etc.)
 - An action to open the door (switch, script, etc.)
 - Mobile device with the Home Assistant Companion App
+- **Optional**: Fully Kiosk Browser Integration for tablet dashboard control
 
 ## Setup
 
@@ -39,6 +42,10 @@ When creating an automation from this blueprint, configure:
 - **Notification Sound (iOS)**: iOS notification sound file
 - **Notification Channel (Android)**: Android notification channel for custom sounds
 - **Action Timeout**: How long the action button remains active
+- **Fully Kiosk Tablets**: Select tablet entities to redirect when doorbell rings
+- **Kiosk Dashboard URL**: Dashboard path to display on tablets
+- **Kiosk Return Timeout**: Time before tablets return to original view (0 = no auto-return)
+- **Wake Tablet Screens**: Whether to wake up sleeping tablets
 
 ### 3. Create Notification Groups (Optional)
 
@@ -53,7 +60,18 @@ notify:
       - service: mobile_app_android_phone
 ```
 
-### 4. Ensure Directory Exists
+### 4. Setup Fully Kiosk Integration (Optional)
+
+If you want to redirect tablet displays when the doorbell rings:
+
+1. Install the **Fully Kiosk Browser** app on your tablets
+2. Install the **Fully Kiosk Browser** integration in Home Assistant:
+   - Go to **Settings** > **Devices & Services** > **Add Integration**
+   - Search for "Fully Kiosk Browser"
+   - Configure with your tablet's IP address and password
+3. Your tablets will appear as `media_player` entities (e.g., `media_player.tablet_wohnzimmer`)
+
+### 5. Ensure Directory Exists
 
 The blueprint saves snapshots to `/config/www/doorbell/`. Make sure this directory exists:
 
@@ -160,15 +178,59 @@ notification_title: "Security Alert"
 
 After creating these automations, configure different sounds for each channel in your Android settings.
 
+### Fully Kiosk Tablet Configuration Examples
+
+**Basic Tablet Redirect**
+```yaml
+kiosk_tablets:
+  - media_player.tablet_wohnzimmer
+  - media_player.tablet_küche
+kiosk_dashboard_url: "/dashboard-home/entrance"
+kiosk_return_timeout: 30
+kiosk_wake_screen: true
+```
+
+**Different Dashboards for Different Areas**
+```yaml
+# Living Room Tablet - Show entrance cam
+kiosk_tablets: 
+  - media_player.tablet_wohnzimmer
+kiosk_dashboard_url: "/dashboard-security/entrance-full"
+kiosk_return_timeout: 45
+
+# Kitchen Tablet - Show quick overview
+kiosk_tablets:
+  - media_player.tablet_küche  
+kiosk_dashboard_url: "/dashboard-home/entrance-compact"
+kiosk_return_timeout: 20
+```
+
+**No Auto-Return (Manual Navigation)**
+```yaml
+kiosk_tablets:
+  - media_player.tablet_haupteingang
+kiosk_dashboard_url: "/dashboard-home/entrance"
+kiosk_return_timeout: 0  # No automatic return
+kiosk_wake_screen: true
+```
+
 ## Usage
 
 1. When someone triggers the doorbell entity, the automation:
    - Takes a snapshot from the configured camera
    - Sends a notification with the photo to your mobile device(s)
    - Shows an "Open Door" button in the notification
+   - **Optionally redirects Fully Kiosk tablets** to the doorbell dashboard
 
-2. **Clicking the notification** opens your specified dashboard view
-3. **Clicking the "Open Door" button** executes your configured door opener action
+2. **Mobile Notifications:**
+   - **Clicking the notification** opens your specified dashboard view
+   - **Clicking the "Open Door" button** executes your configured door opener action
+
+3. **Tablet Display Control:**
+   - Wakes up sleeping tablets (if enabled)
+   - Redirects to the doorbell dashboard immediately
+   - Automatically returns to original view after timeout (if configured)
+   - Multiple tablets can show different dashboard views
 
 ## Snapshots
 
@@ -195,6 +257,18 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Ensure Home Assistant app has notification permissions
   - Try creating a test notification to verify channel setup
 - **Android notification channel not created**: Channel is created automatically on first notification
+- **Tablets not redirecting**: 
+  - Check Fully Kiosk integration is installed and tablets are discovered
+  - Verify tablet entities are `media_player` domain with `fully_kiosk` integration
+  - Test manually: Developer Tools > Services > `fully_kiosk.load_url`
+- **Tablets not waking up**: 
+  - Check "Wake Tablet Screens" is enabled
+  - Verify Fully Kiosk app has device admin permissions on tablet
+  - Some tablets may need "Prevent Sleep" enabled in Fully Kiosk settings
+- **Tablets not returning to original view**: 
+  - Check return timeout is > 0
+  - Verify tablet has a proper start URL configured in Fully Kiosk
+  - Test manually: `fully_kiosk.load_start_url` service
 
 ## Based On
 

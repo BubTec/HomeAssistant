@@ -89,6 +89,43 @@ blueprint:
           unit_of_measurement: seconds
           mode: slider
           step: 5
+    
+    kiosk_tablets:
+      name: Fully Kiosk Tablets (Optional)
+      description: Select Fully Kiosk tablets to redirect to dashboard when doorbell rings
+      default: []
+      selector:
+        entity:
+          domain: media_player
+          integration: fully_kiosk
+          multiple: true
+    
+    kiosk_dashboard_url:
+      name: Kiosk Dashboard URL
+      description: Dashboard URL to display on tablets (relative to HA, e.g., /dashboard-home/entrance)
+      default: "/dashboard-home/entrance"
+      selector:
+        text:
+          type: text
+    
+    kiosk_return_timeout:
+      name: Kiosk Return Timeout
+      description: Time in seconds before tablets return to original view (0 = no auto-return)
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 300
+          unit_of_measurement: seconds
+          mode: slider
+          step: 5
+    
+    kiosk_wake_screen:
+      name: Wake Tablet Screens
+      description: Wake up tablet screens when doorbell rings
+      default: true
+      selector:
+        boolean:
 
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/DoorbellCameraNotification/DoorbellCameraNotification.yaml
 
@@ -96,6 +133,10 @@ variables:
   trigger_entity: !input doorbell_trigger
   image_file: >-
     /local/doorbell/{{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}.jpg
+  kiosk_tablets: !input kiosk_tablets
+  kiosk_url: !input kiosk_dashboard_url
+  kiosk_timeout: !input kiosk_return_timeout
+  wake_screens: !input kiosk_wake_screen
 
 trigger:
   - entity_id: !input doorbell_trigger
@@ -134,6 +175,30 @@ action:
           - action: "{{ action_open_door }}"
             title: !input door_button_title
   
+  - alias: "Wake and redirect Fully Kiosk tablets"
+    if:
+      - condition: template
+        value_template: "{{ kiosk_tablets | length > 0 }}"
+    then:
+      - if:
+          - condition: template
+            value_template: "{{ wake_screens }}"
+        then:
+          - repeat:
+              for_each: "{{ kiosk_tablets }}"
+              sequence:
+                - action: fully_kiosk.stop_screensaver
+                  target:
+                    entity_id: "{{ repeat.item }}"
+      - repeat:
+          for_each: "{{ kiosk_tablets }}"
+          sequence:
+            - action: fully_kiosk.load_url
+              data:
+                url: "{{ kiosk_url }}"
+              target:
+                entity_id: "{{ repeat.item }}"
+  
   - alias: "Wait for door opener action"
     wait_for_trigger:
       - event_type: mobile_app_notification_action
@@ -148,5 +213,19 @@ action:
       - condition: template
         value_template: "{{ wait.trigger.event.data.action == action_open_door }}"
     then: !input door_opener_action
+  
+  - alias: "Return tablets to original view"
+    if:
+      - condition: template
+        value_template: "{{ kiosk_tablets | length > 0 and kiosk_timeout > 0 }}"
+    then:
+      - delay:
+          seconds: "{{ kiosk_timeout }}"
+      - repeat:
+          for_each: "{{ kiosk_tablets }}"
+          sequence:
+            - action: fully_kiosk.load_start_url
+              target:
+                entity_id: "{{ repeat.item }}"
 
 mode: single 
