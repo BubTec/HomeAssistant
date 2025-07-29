@@ -1,25 +1,24 @@
 # Smart Volume Control for Smart Assistants
 
-This Home Assistant blueprint automatically adjusts volume levels of smart assistants (Echo, Google Home, etc.) based on mode changes such as night mode, presence detection, or any other state change. Specifically designed for smart assistant volume entities rather than general media players.
+This Home Assistant blueprint automatically adjusts volume levels of smart assistants (Echo, Google Home, etc.) based on mode changes such as night mode, presence detection, or any other state change. Works with Home Assistant's Alexa Media Player integration and other smart assistant integrations.
 
 ## Features
 
-- 🎤 **Smart Assistant Focus**: Specifically targets Echo, Google Home, and other smart assistant volume entities
-- 🔊 **Dual Volume Control**: Supports both player volume and speak volume (like original ioBroker script)
+- 🎤 **Smart Assistant Focus**: Specifically targets Echo, Google Home, and other smart assistant media players
+- 🔊 **Standard Volume Control**: Uses Home Assistant's `media_player.volume_set` service
 - 🌙 **Night Mode Support**: Perfect for lowering volumes during night hours
-- 🤖 **Auto-Discovery**: Automatically finds Alexa and other smart assistant volume entities
-- 🚫 **Advanced Filtering**: Ignore lists with pattern matching (device IDs, serial numbers)
+- 🤖 **Auto-Discovery**: Automatically finds smart assistant media players by name patterns
+- 🚫 **Advanced Filtering**: Ignore lists with pattern matching (device names, rooms)
 - ⭐ **Special Device Handling**: Configure one device with different volume levels
-- ⏱️ **Smart Delays**: Random delays to prevent command conflicts (like original script)
-- 🎯 **Flexible Entity Types**: Works with number, input_number, and media_player entities
+- ⏱️ **Smart Delays**: Random delays to prevent command conflicts (like original ioBroker script)
+- 🎯 **Flexible Pattern Matching**: Works with any media_player entities matching smart assistant patterns
 
 ## Entity Types Supported
 
-- ✅ **Alexa Echo Devices**: `number.alexa2_*_echo_*_player_volume`
-- ✅ **Alexa Speak Volume**: `number.alexa2_*_echo_*_commands_speak_volume`
-- ✅ **Google Home**: `number.*_volume` entities
-- ✅ **Input Numbers**: `input_number.*_volume` helpers
-- ✅ **Media Players**: Fallback support for `media_player.*` entities
+- ✅ **Alexa Echo Devices**: `media_player.echo_*`, `media_player.*_echo_*`, `media_player.*_alexa_*`
+- ✅ **Google Home/Nest**: `media_player.google_*`, `media_player.*_nest_*`, `media_player.*_assistant_*`
+- ✅ **Custom Smart Assistants**: Any media_player with configurable name patterns
+- ✅ **Manual Selection**: Specific media_player entities of your choice
 
 ## Use Cases
 
@@ -28,7 +27,7 @@ This Home Assistant blueprint automatically adjusts volume levels of smart assis
 - **Work Hours**: Reduce volumes during work-from-home hours
 - **Baby Sleep**: Ultra-quiet mode when baby is sleeping
 - **Party Mode**: Increase volumes for entertainment
-- **Device-Specific Control**: Different volumes for bedroom vs living room Echos
+- **Device-Specific Control**: Different volumes for bedroom vs living room assistants
 
 ## Configuration
 
@@ -42,10 +41,9 @@ This Home Assistant blueprint automatically adjusts volume levels of smart assis
 
 | Input | Description | Default |
 |-------|-------------|---------|
-| **Volume Control Type** | Player, Speak, or Both volumes | Both |
-| **Smart Assistant Volume Entities** | Specific entities (empty = auto-discover) | Auto-discover |
-| **Entity Pattern Filters** | Patterns to find volume entities | Alexa, Google patterns |
-| **Ignore Patterns** | Device ID patterns to ignore | Empty |
+| **Smart Assistant Media Players** | Specific media players (empty = auto-discover) | Auto-discover |
+| **Device Name Patterns** | Patterns to find smart assistants | echo, alexa, google, nest, assistant |
+| **Ignore Patterns** | Device name patterns to ignore | Empty |
 
 ### Volume Configuration
 
@@ -71,7 +69,7 @@ input_boolean:
 
 Blueprint Configuration:
 - **Mode Control Entity**: `input_boolean.night_mode`
-- **Volume Control Type**: "Both Player and Speak Volume"
+- **Smart Assistant Media Players**: (leave empty for auto-discovery)
 - **Low Volume**: 15 (night volume)
 - **High Volume**: 50 (day volume)
 
@@ -80,106 +78,155 @@ Blueprint Configuration:
 ```yaml
 # Blueprint Configuration
 Mode Control Entity: input_boolean.quiet_hours
-Volume Control Type: "Both Player and Speak Volume"
-Smart Assistant Volume Entities: (leave empty for auto-discovery)
+Smart Assistant Media Players: (leave empty for auto-discovery)
+Device Name Patterns:
+  echo
+  alexa
+  google_home
 Ignore Patterns:
-  G090XG0894542523
-  G0922H0843620RFD
-Special Device: number.alexa2_0_echo_devices_main_echo_player_volume
-Special Low Volume: 25
-Special High Volume: 75
+  basement
+  garage
+  outdoor
+Special Device: media_player.echo_bedroom
+Special Low Volume: 10
+Special High Volume: 60
 ```
 
-### Pattern-Based Auto-Discovery
+### Manual Device Selection
 
-The blueprint automatically finds these entity patterns:
-```
-alexa2.*.Echo-Devices.*.Player.volume
-alexa2.*.Echo-Devices.*.Commands.speak-volume
-number.*_volume
-input_number.*_volume
+```yaml
+# Blueprint Configuration
+Mode Control Entity: binary_sensor.everyone_away
+Smart Assistant Media Players:
+  - media_player.echo_kitchen
+  - media_player.echo_living_room
+  - media_player.google_home_bedroom
+Low Volume: 0   # Mute when away
+High Volume: 40 # Normal when home
 ```
 
 ## How It Works
 
 1. **Trigger**: Activates when the mode control entity changes state
-2. **Entity Discovery**: 
+2. **Device Discovery**: 
    - Uses manual selection if provided
-   - Auto-discovers smart assistant volume entities
-   - Filters by volume type (player/speak/both)
+   - Auto-discovers media_player entities matching name patterns
+   - Filters by device name patterns (echo, alexa, google, etc.)
 3. **Ignore Processing**: 
    - Removes entities from ignore list
-   - Applies pattern-based filtering (device IDs)
+   - Applies pattern-based filtering (room names, device names)
 4. **Volume Control**: 
    - Normal devices get low/high volume based on mode
    - Special device gets custom volume levels
-   - Uses appropriate service based on entity type
+   - Uses `media_player.volume_set` service with proper 0.0-1.0 scale
 
-## Entity Services Used
+## Volume Control Details
 
-### Number Entities (Most Alexa volumes)
-```yaml
-service: number.set_value
-data:
-  value: 25  # 0-100 percentage
-```
+### Home Assistant Media Player Service
 
-### Input Number Entities
-```yaml
-service: input_number.set_value
-data:
-  value: 25  # 0-100 percentage
-```
-
-### Media Player Entities (Fallback)
 ```yaml
 service: media_player.volume_set
+target:
+  entity_id: media_player.echo_kitchen
 data:
-  volume_level: 0.25  # 0.0-1.0 scale
+  volume_level: 0.25  # 25% volume (0.0-1.0 scale)
+```
+
+### Automatic Conversion
+
+The blueprint automatically converts percentage inputs (0-100) to Home Assistant's volume scale (0.0-1.0):
+- Input: 25% → volume_level: 0.25
+- Input: 50% → volume_level: 0.50
+- Input: 100% → volume_level: 1.00
+
+## Pattern Matching Examples
+
+### Default Auto-Discovery Patterns
+```
+echo          # Matches: media_player.echo_kitchen, media_player.bedroom_echo
+alexa         # Matches: media_player.alexa_bedroom, media_player.living_alexa
+google        # Matches: media_player.google_home, media_player.google_nest
+nest          # Matches: media_player.nest_mini, media_player.kitchen_nest
+assistant     # Matches: media_player.assistant_*, media_player.*_assistant
+```
+
+### Custom Patterns
+Add your own patterns for other devices:
+```
+sonos_one     # If you have Sonos One with voice assistant
+bose_home     # Bose smart speakers
 ```
 
 ## Advanced Features
 
 ### Ignore Patterns
 
-Ignore specific Echo devices by serial number:
+Ignore specific devices or rooms:
 ```
-G090XG0894542523
-G0922H0843620RFD
-basement_echo
+basement      # Ignores: media_player.echo_basement
+outdoor       # Ignores: media_player.outdoor_speaker
+workshop      # Ignores: media_player.workshop_echo
 ```
-
-### Volume Type Control
-
-- **Player Volume Only**: Controls music/media playback volume
-- **Speak Volume Only**: Controls TTS/announcement volume  
-- **Both**: Controls both types (recommended)
 
 ### Random Delays
 
 Prevents command conflicts when controlling multiple devices:
 - Configurable 1-30 second maximum delay
-- Each device gets a random delay
-- Special device gets fixed delay
+- Each device gets a random delay between 0-max seconds
+- Special device gets fixed delay (default 15 seconds)
+
+### Special Device Handling
+
+Perfect for main/master devices that need different volume levels:
+- Bedroom Echo stays quieter even in "normal" mode
+- Living room speaker gets louder for announcements
+- Kitchen device for cooking timers and recipes
+
+## Integration Requirements
+
+### Alexa Media Player Integration
+
+Install the custom Alexa Media Player integration:
+```yaml
+# In HACS → Integrations
+# Search for "Alexa Media Player"
+# Follow setup instructions for your Amazon account
+```
+
+Your Echo devices will appear as:
+```
+media_player.echo_dot_kitchen
+media_player.echo_show_bedroom  
+media_player.echo_plus_living_room
+```
+
+### Google Assistant Integration
+
+For Google/Nest devices, use the Google Cast integration (built-in):
+```
+media_player.google_home_mini
+media_player.nest_hub_kitchen
+media_player.nest_audio_bedroom
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**No entities found:**
-- Check if Alexa integration is working
-- Verify entity names match expected patterns
-- Try manual entity selection
+**No devices found:**
+- Check if Alexa Media Player or Google Cast integration is working
+- Verify device names contain expected patterns (echo, alexa, google)
+- Try manual device selection instead of auto-discovery
 
-**Some Echos don't respond:**
-- Check device IDs in ignore patterns
-- Verify entities exist and are available
-- Some devices may need brief delays
+**Some devices don't respond:**
+- Check device names in ignore patterns
+- Verify entities exist in Developer Tools → States
+- Ensure devices are online and available
 
 **Wrong volume levels:**
-- Number entities use 0-100 scale
-- Media players use 0.0-1.0 scale (auto-converted)
-- Check entity state in Developer Tools
+- All volumes use 0-100 percentage scale
+- Blueprint automatically converts to Home Assistant's 0.0-1.0 scale
+- Check current volume_level attribute in Developer Tools
 
 ### Debugging
 
@@ -188,18 +235,22 @@ Enable debug logging:
 logger:
   logs:
     homeassistant.components.automation: debug
-    homeassistant.components.alexa2: debug
+    homeassistant.components.media_player: debug
 ```
 
-Check discovered entities in template editor:
+Check discovered devices in Developer Tools → Template:
 ```jinja2
-{% set all_entities = [] %}
-{% for entity in states.number %}
-  {% if 'alexa2' in entity.entity_id and 'volume' in entity.entity_id %}
-    {% set all_entities = all_entities + [entity.entity_id] %}
-  {% endif %}
+{% set patterns = ['echo', 'alexa', 'google', 'nest'] %}
+{% set found_players = [] %}
+{% for entity in states.media_player %}
+  {% for pattern in patterns %}
+    {% if pattern in entity.entity_id.lower() %}
+      {% set found_players = found_players + [entity.entity_id] %}
+      {% break %}
+    {% endif %}
+  {% endfor %}
 {% endfor %}
-{{ all_entities }}
+{{ found_players }}
 ```
 
 ## Migration from ioBroker
@@ -209,11 +260,45 @@ This blueprint replicates the original ioBroker Echo volume script:
 | ioBroker Feature | Home Assistant Equivalent |
 |------------------|----------------------------|
 | `IgnoreList` array | Ignore Patterns input |
-| Player volume control | Number entity volume control |
-| Speak volume control | Number entity speak-volume control |
+| Alexa device selection | Auto-discovery by name patterns |
+| Volume control | media_player.volume_set service |
 | Random delays | Random delay feature |
 | Special device handling | Special Device configuration |
 | NightLightMode trigger | Mode Control Entity |
+
+## Example Automations
+
+### Time-Based Night Mode
+
+```yaml
+automation:
+  - alias: "Auto Night Mode"
+    trigger:
+      - platform: time
+        at: "22:00:00"
+        id: "night_start"
+      - platform: time  
+        at: "07:00:00"
+        id: "night_end"
+    action:
+      - service: input_boolean.turn_{{ 'on' if trigger.id == 'night_start' else 'off' }}
+        target:
+          entity_id: input_boolean.night_mode
+```
+
+### Presence-Based Control
+
+```yaml
+automation:
+  - alias: "Away Mode Volume"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.everyone_away
+    action:
+      - service: input_boolean.turn_{{ 'on' if trigger.to_state.state == 'on' else 'off' }}
+        target:
+          entity_id: input_boolean.away_mode
+```
 
 ## Related Blueprints
 
