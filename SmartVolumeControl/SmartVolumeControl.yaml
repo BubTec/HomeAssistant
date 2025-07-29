@@ -1,0 +1,213 @@
+blueprint:
+  name: Smart Volume Control for Media Players
+  description: >
+    Automatically adjusts volume levels of media players based on mode changes (e.g., night mode).
+    Supports ignore lists, special device handling, and configurable volume levels.
+    Perfect for Echo devices, speakers, and other media players that need context-aware volume control.
+  domain: automation
+  input:
+    mode_entity:
+      name: Mode Control Entity
+      description: Entity that triggers volume changes (e.g., night mode helper, presence sensor)
+      selector:
+        entity:
+          domain: 
+            - input_boolean
+            - binary_sensor
+            - sensor
+            - switch
+      default: ""
+    
+    media_players:
+      name: Media Players
+      description: Media players to control (leave empty to auto-discover all media_player entities)
+      selector:
+        entity:
+          domain: media_player
+          multiple: true
+      default: []
+    
+    low_volume:
+      name: Low Volume Level
+      description: Volume level when mode is active (0-100)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+      default: 20
+    
+    high_volume:
+      name: High Volume Level  
+      description: Volume level when mode is inactive (0-100)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+      default: 40
+    
+    ignore_entities:
+      name: Ignored Media Players
+      description: Media players to exclude from automatic volume control
+      selector:
+        entity:
+          domain: media_player
+          multiple: true
+      default: []
+    
+    special_device:
+      name: Special Device (Optional)
+      description: Media player that gets different volume levels
+      selector:
+        entity:
+          domain: media_player
+      default: ""
+    
+    special_low_volume:
+      name: Special Device Low Volume
+      description: Special device volume when mode is active (0-100)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+      default: 30
+    
+    special_high_volume:
+      name: Special Device High Volume
+      description: Special device volume when mode is inactive (0-100)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+      default: 80
+    
+    use_random_delay:
+      name: Use Random Delays
+      description: Add random delays to prevent simultaneous commands
+      selector:
+        boolean:
+      default: true
+    
+    max_delay:
+      name: Maximum Random Delay
+      description: Maximum delay in seconds for randomization
+      selector:
+        number:
+          min: 1
+          max: 30
+          step: 1
+          unit_of_measurement: "seconds"
+      default: 10
+    
+    special_delay:
+      name: Special Device Delay
+      description: Fixed delay for special device in seconds
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 1
+          unit_of_measurement: "seconds"
+      default: 15
+
+variables:
+  mode_entity: !input mode_entity
+  media_players: !input media_players
+  low_volume: !input low_volume
+  high_volume: !input high_volume
+  ignore_entities: !input ignore_entities
+  special_device: !input special_device
+  special_low_volume: !input special_low_volume
+  special_high_volume: !input special_high_volume
+  use_random_delay: !input use_random_delay
+  max_delay: !input max_delay
+  special_delay: !input special_delay
+
+trigger:
+  - platform: state
+    entity_id: !input mode_entity
+    id: "mode_change"
+
+condition:
+  # Only trigger when the entity actually changes state (not just attributes)
+  - condition: template
+    value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
+
+action:
+  - variables:
+      # Determine if mode is active (various entity types)
+      mode_active: >
+        {% if mode_entity.startswith('input_boolean.') or mode_entity.startswith('switch.') %}
+          {{ is_state(mode_entity, 'on') }}
+        {% elif mode_entity.startswith('binary_sensor.') %}
+          {{ is_state(mode_entity, 'on') }}
+        {% else %}
+          {{ states(mode_entity) in ['on', 'true', 'active', 'home'] }}
+        {% endif %}
+      
+      # Get target volume based on mode
+      target_volume: >
+        {{ special_low_volume if mode_active else special_high_volume }}
+      
+      normal_volume: >
+        {{ low_volume if mode_active else high_volume }}
+      
+      # Get list of media players to control
+      players_list: >
+        {% if media_players | length > 0 %}
+          {{ media_players }}
+        {% else %}
+          {{ states.media_player | map(attribute='entity_id') | list }}
+        {% endif %}
+      
+      # Filter out ignored entities
+      filtered_players: >
+        {% set players = players_list %}
+        {% set ignored = ignore_entities %}
+        {{ players | reject('in', ignored) | list }}
+
+  # Control normal media players
+  - repeat:
+      for_each: "{{ filtered_players }}"
+      sequence:
+        - condition: template
+          value_template: "{{ repeat.item != special_device }}"
+        
+        - variables:
+            random_delay: >
+              {% if use_random_delay %}
+                {{ range(1, max_delay * 1000) | random / 1000 }}
+              {% else %}
+                0
+              {% endif %}
+        
+        - delay:
+            seconds: "{{ random_delay }}"
+        
+        - service: media_player.volume_set
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            volume_level: "{{ normal_volume / 100 }}"
+          continue_on_error: true
+
+  # Control special device if specified
+  - condition: template
+    value_template: "{{ special_device != '' }}"
+  
+  - delay:
+      seconds: "{{ special_delay }}"
+  
+  - service: media_player.volume_set
+    target:
+      entity_id: "{{ special_device }}"
+    data:
+      volume_level: "{{ target_volume / 100 }}"
+    continue_on_error: true 

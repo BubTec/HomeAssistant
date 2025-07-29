@@ -24,6 +24,11 @@ Intelligent frost and ice warnings based on weather data and temperature sensors
 
 [📖 Documentation](./FrostWarning/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/FrostWarning/FrostWarning.yaml)
 
+### 🔊 Smart Volume Control for Media Players
+Automatically adjusts volume levels of media players based on mode changes (night mode, presence detection). Supports ignore lists, special device handling, and smart delays for Echo devices and other speakers.
+
+[📖 Documentation](./SmartVolumeControl/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/SmartVolumeControl/SmartVolumeControl.yaml)
+
 ---
 
 ## Features Overview
@@ -34,6 +39,7 @@ Intelligent frost and ice warnings based on weather data and temperature sensors
 | **Cat Litter Box Counter** | Usage tracking, cleaning reminders, tool monitoring | Pet care automation |
 | **Birthday Reminder** | Multi-person support, age calculation, music integration | Family reminders, celebration planning |
 | **Frost Warning** | Dual warning levels, multiple temp sources, real-time updates | Car windscreen, plant protection |
+| **Smart Volume Control** | Mode-based volume adjustment, ignore lists, special device handling | Night mode, presence detection, echo control |
 
 ## How to Use
 
