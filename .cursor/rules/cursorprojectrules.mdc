@@ -3,7 +3,10 @@ description:
 globs: 
 alwaysApply: true
 ---
-Cdoe immer in Englisch, Kommunikation mit dem ANwender auf deutsch!
+Cdoe immer in Englisch, Kommunikation mit dem Anwender auf deutsch!
+Das heißt, das READMEs und der Code Englisch sind! Nur die Kommunikation zum Anwender erfolgt auf deutsch!
+
+
 Es geht in diesem Projekt darum mehrere iobroker Scripte in Home Assistant Blueprints umzuwandeln.
 Die originalen Scripte sind in _old zu finden.
 
