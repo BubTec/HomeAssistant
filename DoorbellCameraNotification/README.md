@@ -265,6 +265,7 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Check "Wake Tablet Screens" is enabled
   - Verify Fully Kiosk app has device admin permissions on tablet
   - Some tablets may need "Prevent Sleep" enabled in Fully Kiosk settings
+  - Test manually: `fully_kiosk.screen_on` service
 - **Tablets not returning to original view**: 
   - Check return timeout is > 0
   - Verify tablet has a proper start URL configured in Fully Kiosk
