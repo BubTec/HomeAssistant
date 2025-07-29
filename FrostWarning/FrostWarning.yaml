@@ -92,18 +92,22 @@ variables:
   lng: "{{ state_attr(location_device, 'longitude') | float }}"
   location_name: "{{ state_attr(location_device, 'friendly_name') or location_device }}"
   notification_targets: !input notification_targets
+  notification_title: !input notification_title
+  frost_api_key: !input frost_api_key
   warning_time: !input warning_time
+  warning_days_input: !input warning_days
+  custom_warning_days_input: !input custom_warning_days
   warning_days: >-
-    {% if input.warning_days == "weekdays" %}
+    {% if warning_days_input == "weekdays" %}
       [1, 2, 3, 4, 5]
-    {% elif input.warning_days == "everyday" %}
+    {% elif warning_days_input == "everyday" %}
       [1, 2, 3, 4, 5, 6, 7]
-    {% elif input.warning_days == "weekends" %}
+    {% elif warning_days_input == "weekends" %}
       [6, 7]
-    {% elif input.warning_days == "monday" %}
+    {% elif warning_days_input == "monday" %}
       [1]
-    {% elif input.warning_days == "custom" %}
-      {{ input.custom_warning_days | map('int') | list }}
+    {% elif warning_days_input == "custom" %}
+      {{ custom_warning_days_input | map('int') | list }}
     {% else %}
       [1, 2, 3, 4, 5]
     {% endif %}
@@ -129,7 +133,7 @@ action:
         service: http.get
         data:
           url: >-
-            https://api.eiswarnung.de?key={{ input.frost_api_key }}&lat={{ lat }}&lng={{ lng }}
+            https://api.eiswarnung.de?key={{ frost_api_key }}&lat={{ lat }}&lng={{ lng }}
           timeout: 10
         response_variable: api_response
       
@@ -161,7 +165,7 @@ action:
                 - service: notify.send_message
                   target: "{{ repeat.item }}"
                   data:
-                    title: !input notification_title
+                    title: "{{ notification_title }}"
                     message: "{{ warning_message }}"
       
       # Log warning sent
