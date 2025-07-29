@@ -1,17 +1,15 @@
 blueprint:
-  name: Frost Warning with Flexible Configuration
+  name: Frost Warning
   description: >
-    Blueprint for automation that sends frost warnings with flexible configuration.
-    Checks frost forecast via API and sends notifications with customizable messages,
-    targets, and error handling. Supports multiple notification methods and fallback options.
+    Simple blueprint for frost warnings using eiswarnung.de API.
+    Sends notifications when frost is detected at your location.
   domain: automation
   input:
     frost_api_key:
       name: Frost API Key
       description: API key for eiswarnung.de service
       selector:
-        text:
-          type: text
+        text: {}
     
     location_device:
       name: Location Device
@@ -19,43 +17,6 @@ blueprint:
       selector:
         entity:
           domain: device_tracker
-          multiple: false
-    
-    use_manual_coordinates:
-      name: Use Manual Coordinates
-      description: Enable this to use manual coordinates instead of device location
-      default: false
-      selector:
-        boolean: {}
-    
-    manual_latitude:
-      name: Manual Latitude
-      description: Latitude coordinate (only used if manual coordinates enabled)
-      selector:
-        text: {}
-    
-    manual_longitude:
-      name: Manual Longitude  
-      description: Longitude coordinate (only used if manual coordinates enabled)
-      selector:
-        text: {}
-    
-    frost_forecast_sensor:
-      name: Frost Forecast Sensor
-      description: RESTful sensor that provides eiswarnung.de forecast ID (see README for setup)
-      selector:
-        entity:
-          domain: sensor
-          multiple: false
-      default: ""
-    
-    car_temperature_sensor:
-      name: Car Temperature Sensor
-      description: Temperature sensor for car outside temperature
-      selector:
-        entity:
-          domain: sensor
-          device_class: temperature
           multiple: false
     
     notification_targets:
@@ -72,33 +33,7 @@ blueprint:
       description: Title for the frost warning notification
       default: "Frost Warning!"
       selector:
-        text:
-          type: text
-    
-    dashboard_view:
-      name: Dashboard View
-      description: Dashboard path to open when notification is clicked
-      default: "/dashboard-home/car"
-      selector:
-        text:
-          type: text
-    
-    notification_sound:
-      name: Notification Sound (iOS)
-      description: Sound file for iOS notifications
-      default: "US-EN-Morgan-Freeman-Warning.wav"
-      selector:
-        text:
-          type: text
-    
-    notification_channel:
-      name: Notification Channel (Android)
-      description: >
-        Android notification channel name for frost warnings
-      default: "frost_alerts"
-      selector:
-        text:
-          type: text
+        text: {}
     
     warning_time:
       name: Warning Time
@@ -148,63 +83,15 @@ blueprint:
             - label: "Sunday"
               value: "7"
           multiple: true
-    
-    update_interval_hours:
-      name: API Update Interval
-      description: How often to update frost forecast from API (in hours)
-      default: 2
-      selector:
-        number:
-          min: 1
-          max: 24
-          mode: slider
-          step: 1
-    
-    enable_fallback_sensor:
-      name: Enable Fallback Sensor
-      description: Use local temperature sensor as fallback if API fails
-      default: true
-      selector:
-        boolean: {}
-    
-    fallback_temperature_threshold:
-      name: Fallback Temperature Threshold
-      description: Temperature threshold for fallback frost warning (°C)
-      default: 3
-      selector:
-        number:
-          min: -10
-          max: 10
-          mode: slider
-          step: 0.5
 
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/FrostWarning/FrostWarning.yaml
 
 variables:
   location_device: !input location_device
-  use_manual_coordinates: !input use_manual_coordinates
-  lat: >-
-    {% if use_manual_coordinates %}
-      {{ input.manual_latitude | float }}
-    {% else %}
-      {{ state_attr(location_device, 'latitude') | float }}
-    {% endif %}
-  lng: >-
-    {% if use_manual_coordinates %}
-      {{ input.manual_longitude | float }}
-    {% else %}
-      {{ state_attr(location_device, 'longitude') | float }}
-    {% endif %}
-  location_name: >-
-    {% if use_manual_coordinates %}
-      "Manual Location"
-    {% else %}
-      {{ state_attr(location_device, 'friendly_name') or location_device }}
-    {% endif %}
-  frost_forecast_sensor: !input frost_forecast_sensor
-  car_temp_sensor: !input car_temperature_sensor
+  lat: "{{ state_attr(location_device, 'latitude') | float }}"
+  lng: "{{ state_attr(location_device, 'longitude') | float }}"
+  location_name: "{{ state_attr(location_device, 'friendly_name') or location_device }}"
   notification_targets: !input notification_targets
-  dashboard_view: !input dashboard_view
   warning_time: !input warning_time
   warning_days: >-
     {% if input.warning_days == "weekdays" %}
@@ -220,16 +107,11 @@ variables:
     {% else %}
       [1, 2, 3, 4, 5]
     {% endif %}
-  enable_fallback: !input enable_fallback_sensor
-  fallback_threshold: !input fallback_temperature_threshold
 
 trigger:
   # Daily warning at specified time
   - platform: time
     at: !input warning_time
-  # Regular API updates
-  - platform: time_pattern
-    hours: "/{{ input.update_interval_hours }}"
 
 condition:
   # Check if today is a warning day
@@ -242,55 +124,39 @@ condition:
 action:
   - alias: "Check frost forecast and send warning"
     sequence:
-      # Get frost forecast from sensor
+      # Get frost forecast from API
       - alias: "Get frost forecast level"
-        variables:
-          forecast_id: >-
-            {% if frost_forecast_sensor != "" and states(frost_forecast_sensor) not in ['unknown', 'unavailable'] %}
-              {{ states(frost_forecast_sensor) | int }}
-            {% else %}
-              null
-            {% endif %}
-          api_success: >-
-            {% if forecast_id is not none %}
-              true
-            {% else %}
-              false
-            {% endif %}
-      
-      # Fallback to local sensor if API failed
-      - alias: "Check fallback sensor if API failed"
-        if:
-          - condition: template
-            value_template: "{{ not api_success and enable_fallback and car_temp_sensor is not none }}"
-        then:
-          - variables:
-              current_temp: "{{ states(car_temp_sensor) | float(0) }}"
-              forecast_id: >-
-                {% if current_temp <= fallback_threshold %}
-                  1
-                {% else %}
-                  0
-                {% endif %}
-              api_success: true
+        service: rest.get
+        data:
+          url: >-
+            https://api.eiswarnung.de?key={{ input.frost_api_key }}&lat={{ lat }}&lng={{ lng }}
+          timeout: 10
       
       # Send notification if frost detected
       - alias: "Send frost warning notification"
         if:
           - condition: template
-            value_template: "{{ api_success and forecast_id in [1, 2] }}"
+            value_template: >
+              {% set response = states('sensor.rest_eiswarnung') %}
+              {% if response not in ['unknown', 'unavailable'] %}
+                {% set data = response | from_json %}
+                {% set forecast_id = data.result.forecastId %}
+                {{ forecast_id in [1, 2] }}
+              {% else %}
+                false
+              {% endif %}
         then:
           - variables:
-              car_temp: "{{ states(car_temp_sensor) | float(0) if car_temp_sensor else 'unknown' }}"
+              response: "{{ states('sensor.rest_eiswarnung') }}"
+              data: "{{ response | from_json }}"
+              forecast_id: "{{ data.result.forecastId }}"
               warning_message: >-
                 {% if forecast_id == 1 %}
                   You need to scrape your windshield today before driving! 
                   Location: {{ location_name }}
-                  Car temperature: {{ car_temp }}°C
                 {% elif forecast_id == 2 %}
                   You might need to scrape your windshield today before driving! 
                   Location: {{ location_name }}
-                  Car temperature: {{ car_temp }}°C
                 {% endif %}
               timestamp: "{{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}"
           
@@ -302,19 +168,20 @@ action:
                   data:
                     title: !input notification_title
                     message: "{{ warning_message }}"
-                    data:
-                      push:
-                        sound: !input notification_sound
-                      channel: !input notification_channel
-                      ttl: 0
-                      priority: high
-                      clickAction: "{{ dashboard_view }}"
       
       # Log warning sent
       - alias: "Log frost warning sent"
         if:
           - condition: template
-            value_template: "{{ api_success and forecast_id in [1, 2] }}"
+            value_template: >
+              {% set response = states('sensor.rest_eiswarnung') %}
+              {% if response not in ['unknown', 'unavailable'] %}
+                {% set data = response | from_json %}
+                {% set forecast_id = data.result.forecastId %}
+                {{ forecast_id in [1, 2] }}
+              {% else %}
+                false
+              {% endif %}
         then:
           - service: persistent_notification.create
             data:
@@ -322,40 +189,6 @@ action:
               message: >
                 Frost warning sent at {{ timestamp }}.
                 Location: {{ location_name }}
-                Frost level: {{ forecast_id }}, 
-                Car temperature: {{ car_temp }}°C
-      
-      # Log if no frost detected
-      - alias: "Log no frost detected"
-        if:
-          - condition: template
-            value_template: "{{ api_success and forecast_id == 0 }}"
-        then:
-          - service: persistent_notification.create
-            data:
-              title: "No Frost Warning"
-              message: >
-                No frost detected at {{ timestamp }}.
-                Location: {{ location_name }}
-                Frost level: {{ forecast_id }}, 
-                Car temperature: {{ car_temp }}°C
-      
-      # Log API failure
-      - alias: "Log API failure"
-        if:
-          - condition: template
-            value_template: "{{ not api_success }}"
-        then:
-          - service: persistent_notification.create
-            data:
-              title: "Frost Warning API Failure"
-              message: >
-                Failed to get frost forecast.
-                Location: {{ location_name }}
-                {% if enable_fallback and car_temp_sensor %}
-                Fallback sensor enabled but temperature threshold not met.
-                {% else %}
-                No fallback sensor configured.
-                {% endif %}
+                Frost level: {{ forecast_id }}
 
 mode: single 
