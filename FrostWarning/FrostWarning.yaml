@@ -5,11 +5,14 @@ blueprint:
     Sends notifications when frost is detected at your location.
   domain: automation
   input:
-    frost_api_key:
-      name: Frost API Key
-      description: API key for eiswarnung.de service
+    frost_sensor:
+      name: Frost Sensor
+      description: REST sensor for eiswarnung.de API (see README for setup)
       selector:
-        text: {}
+        entity:
+          domain: sensor
+          multiple: false
+      default: "sensor.frost_warning_api"
     
     location_device:
       name: Location Device
@@ -102,7 +105,7 @@ variables:
   notification_targets: !input notification_targets
   notification_title: !input notification_title
   warning_message: !input warning_message
-  frost_api_key: !input frost_api_key
+  frost_sensor: !input frost_sensor
   warning_time: !input warning_time
   warning_days_input: !input warning_days
   custom_warning_days_input: !input custom_warning_days
@@ -135,22 +138,45 @@ condition:
       {{ today in warning_days }}
 
 action:
-  - alias: "Send frost warning notification"
+  - alias: "Check frost and send warning if needed"
     sequence:
-      # Send notification (for now simple message until REST sensor is set up)
-      - service: notify.send_message
-        target: "{{ notification_targets }}"
-        data:
-          title: "{{ notification_title }}"
-          message: "{{ warning_message }}"
+      # Get frost level from sensor
+      - variables:
+          frost_level: "{{ states(frost_sensor) | int(0) }}"
       
-      # Log warning sent
-      - service: persistent_notification.create
-        data:
-          title: "Eis Warnung Gesendet"
-          message: >
-            Eis Warnung gesendet am {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
-            Standort: {{ location_name }}
-            Nachricht: {{ warning_message }}
+      # Only send notification if frost detected (Level 1 or 2)
+      - if:
+          - condition: template
+            value_template: "{{ frost_level in [1, 2] }}"
+        then:
+          # Send frost warning to device
+          - service: notify.send_message
+            target: "{{ notification_targets }}"
+            data:
+              title: "{{ notification_title }}"
+              message: >-
+                {% if frost_level == 1 %}
+                  Du musst heute kratzen! Frost-Level: {{ frost_level }}, Standort: {{ location_name }}
+                {% elif frost_level == 2 %}
+                  Du musst eventuell kratzen! Frost-Level: {{ frost_level }}, Standort: {{ location_name }}
+                {% endif %}
+          
+          # Log warning sent
+          - service: persistent_notification.create
+            data:
+              title: "Eis Warnung Gesendet"
+              message: >
+                Eis Warnung gesendet am {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+                Frost-Level: {{ frost_level }}
+                Standort: {{ location_name }}
+        else:
+          # Log no frost detected
+          - service: persistent_notification.create
+            data:
+              title: "Kein Frost"
+              message: >
+                Kein Frost erkannt am {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+                Frost-Level: {{ frost_level }}
+                Standort: {{ location_name }}
 
 mode: single 
