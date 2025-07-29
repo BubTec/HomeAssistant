@@ -136,8 +136,7 @@ action:
               target: "{{ repeat.item }}"
               data:
                 title: "{{ notification_title }}"
-                message: >-
-                  Frost warning check for {{ location_name }}. Please check eiswarnung.de for current frost conditions.
+                message: "Frost warning check for {{ location_name }}. Please check eiswarnung.de for current frost conditions."
       
       # Log warning sent
       - service: persistent_notification.create
