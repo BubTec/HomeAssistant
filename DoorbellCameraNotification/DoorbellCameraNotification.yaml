@@ -207,10 +207,10 @@ action:
                     
             - alias: "Load doorbell dashboard"
               action: fully_kiosk.load_url
-              data:
-                url: "{{ kiosk_url }}"
               target:
                 entity_id: "{{ repeat.item }}"
+              data:
+                url: "{{ kiosk_url }}"
   
   - alias: "Wait for door opener action"
     wait_for_trigger:
@@ -242,9 +242,9 @@ action:
                 
             - alias: "Load normal URL"
               action: fully_kiosk.load_url
-              data:
-                url: "{{ normal_url }}"
               target:
                 entity_id: "{{ repeat.item }}"
+              data:
+                url: "{{ normal_url }}"
 
 mode: single 
