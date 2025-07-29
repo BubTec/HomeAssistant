@@ -129,14 +129,11 @@ action:
   - alias: "Send frost warning notification"
     sequence:
       # Send notification with frost warning
-      - repeat:
-          for_each: "{{ notification_targets }}"
-          sequence:
-            - service: notify.send_message
-              target: "{{ repeat.item }}"
-              data:
-                title: "{{ notification_title }}"
-                message: "Frost warning check for {{ location_name }}. Please check eiswarnung.de for current frost conditions."
+      - service: notify.send_message
+        target: "{{ notification_targets }}"
+        data:
+          title: "{{ notification_title }}"
+          message: "Frost warning check for {{ location_name }}. Please check eiswarnung.de for current frost conditions."
       
       # Log warning sent
       - service: persistent_notification.create
