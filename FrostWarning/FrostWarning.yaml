@@ -22,13 +22,13 @@ blueprint:
           domain: device_tracker
           multiple: false
     
-    notification_service:
-      name: Notification Service
+    notification_target:
+      name: Notification Target
       description: >
-        Notification service for your phone (e.g. notify.mobile_app_sm_g990b)
+        Device or service to send notification to (e.g., notify.mobile_app_xxx)
       selector:
-        text: {}
-      default: "notify.mobile_app_sm_g990b"
+        text:
+          type: text
     
     notification_title:
       name: Notification Title
@@ -108,7 +108,7 @@ variables:
   lat: "{{ state_attr(location_device, 'latitude') | float }}"
   lng: "{{ state_attr(location_device, 'longitude') | float }}"
   location_name: "{{ state_attr(location_device, 'friendly_name') or location_device }}"
-  notification_service: !input notification_service
+  notification_target: !input notification_target
   notification_title: !input notification_title
   warning_message: !input warning_message
   frost_sensor: !input frost_sensor
@@ -157,7 +157,7 @@ action:
             value_template: "{{ frost_level in [1, 2] }}"
         then:
           # Send frost warning to device
-          - action: "{{ notification_service }}"
+          - action: !input notification_target
             data:
               title: "{{ notification_title }}"
               message: >-
