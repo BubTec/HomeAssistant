@@ -14,35 +14,6 @@ blueprint:
           domain: sensor
       default: ""
     
-    eiswarnung_api_key:
-      name: API Key (for manual setup)
-      description: Your eiswarnung.de API key (shown for reference - configure in sensor)
-      selector:
-        text:
-      default: ""
-    
-    latitude:
-      name: Latitude (for reference)
-      description: Latitude for ice warning location (configure in sensor)
-      selector:
-        number:
-          min: 47.0
-          max: 55.0
-          step: 0.000001
-          mode: box
-      default: 52.5200
-    
-    longitude:
-      name: Longitude (for reference)
-      description: Longitude for ice warning location (configure in sensor)
-      selector:
-        number:
-          min: 5.0
-          max: 15.0
-          step: 0.000001
-          mode: box
-      default: 13.4050
-    
     temperature_sensor:
       name: Temperature Sensor (Optional)
       description: Additional temperature sensor for local readings (e.g., car, garage)
@@ -72,8 +43,6 @@ blueprint:
       selector:
         boolean:
       default: false
-    
-
     
     high_risk_message:
       name: High Risk Message (Level 1)
@@ -119,16 +88,17 @@ trigger:
     id: "sensor_update"
 
 condition:
+  # Skip if no eiswarnung sensor configured
+  - condition: template
+    value_template: "{{ eiswarnung_sensor != '' }}"
+  
+  # Weekend check
   - condition: template
     value_template: >
-      {% if trigger.id == "morning_warning" %}
-        {% if weekend_warnings %}
-          true
-        {% else %}
-          {{ now().weekday() < 5 }}
-        {% endif %}
-      {% else %}
+      {% if weekend_warnings %}
         true
+      {% else %}
+        {{ now().weekday() < 5 }}
       {% endif %}
 
 action:
@@ -151,23 +121,15 @@ action:
         {% if temperature_sensor != "" and states(temperature_sensor) not in ['unknown', 'unavailable'] %}
           {{ states(temperature_sensor) | float }}
         {% else %}
-          null
+          none
         {% endif %}
       
       temp_info: >
         {% if current_temp is not none %}
-          {{ " Die Temperatur" + location_text + " liegt bei " + current_temp|string + "°C." }}
+          {{ " Aktuelle Temperatur" + location_text + ": " + current_temp | round(1) | string + "°C" }}
         {% else %}
           ""
         {% endif %}
-
-  # Store forecast ID for history
-  - service: input_number.set_value
-    target:
-      entity_id: input_number.ice_warning_level
-    data:
-      value: "{{ forecast_id }}"
-    continue_on_error: true
 
   - choose:
       # High ice risk (Level 1)
@@ -196,27 +158,4 @@ action:
                 {{ medium_risk_message.replace('{temp_info}', temp_info) }}
                 {% if trigger.id == "sensor_update" %}
                 (Aktualisiert um {{ now().strftime('%H:%M') }})
-                {% endif %}
-
-      # No warning (Level 0) - only notify in morning
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.id == 'morning_warning' and forecast_id == 0 }}"
-        sequence:
-          - service: "{{ notification_service }}"
-            data:
-              title: "☀️ Keine Eiswarnung"
-              message: >
-                Gute Nachrichten! Heute ist kein Eis zu erwarten{{ location_text }}.
-                {{ temp_info.replace(' Die Temperatur', 'Temperatur') if temp_info != '' else '' }}
-
-  # Log for debugging
-  - service: logbook.log
-    data:
-      name: "German Ice Warning"
-      message: >
-        Eiswarnung Check{{ location_text }}: Level {{ forecast_id }}
-        {% if current_temp is not none %}
-        (Temperatur: {{ current_temp }}°C)
-        {% endif %}
-        Sensor: {{ eiswarnung_sensor }} 
+                {% endif %} 
