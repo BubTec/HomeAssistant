@@ -14,7 +14,7 @@ blueprint:
     slave_motion_sensor:
       name: "Secondary Motion Sensor (Optional)"
       description: "Optional secondary motion sensor (e.g., hallway) for enhanced detection logic"
-      default: {}
+      default: ""
       selector:
         entity:
           domain: binary_sensor
@@ -29,7 +29,7 @@ blueprint:
     mailbox_sensor:
       name: "Mailbox Sensor (Optional)"
       description: "Binary sensor indicating if there's mail in the mailbox"
-      default: {}
+      default: ""
       selector:
         entity:
           domain: binary_sensor
@@ -37,7 +37,7 @@ blueprint:
     waste_yellow_today:
       name: "Yellow Waste Collection Today (Optional)"
       description: "Binary sensor indicating if yellow waste collection is today"
-      default: {}
+      default: ""
       selector:
         entity:
           domain: binary_sensor
@@ -45,7 +45,7 @@ blueprint:
     waste_black_today:
       name: "Black Waste Collection Today (Optional)"
       description: "Binary sensor indicating if black waste collection is today"  
-      default: {}
+      default: ""
       selector:
         entity:
           domain: binary_sensor
@@ -53,7 +53,7 @@ blueprint:
     open_windows_sensor:
       name: "Open Windows Sensor (Optional)"
       description: "Binary sensor indicating if windows are open"
-      default: {}
+      default: ""
       selector:
         entity:
           domain: binary_sensor
@@ -61,7 +61,7 @@ blueprint:
     open_windows_list:
       name: "Open Windows List (Optional)"
       description: "Sensor containing list of rooms with open windows"
-      default: {}
+      default: ""
       selector:
         entity:
           domain: sensor
@@ -104,6 +104,154 @@ blueprint:
         number:
           min: 1
           max: 10
+    
+    daily_counter:
+      name: "Daily Counter Helper (counter.smart_greeter_daily_counter)"
+      description: "Counter helper to track daily announcements"
+      selector:
+        entity:
+          domain: counter
+    
+    normal_greetings:
+      name: "Normal Greetings"
+      description: "List of normal greeting messages (one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        Willkommen zuhause!
+        Hallo!
+        Schön dich zu sehen!
+        Willkommen zurück!
+        Sei gegrüßt!
+        Hey, wie geht's?
+        Schön dich wieder zu sehen!
+        Hallo, hallo!
+        Willkommen in deinem Smart Home!
+        Hi!
+        Schön, dass du wieder da bist!
+        Hallo Freund!
+        Hey, willkommen zuhause!
+        Freut mich, dich zu sehen!
+        Hallo Sonnenschein!
+        Hey Superstar!
+        Willkommen daheim!
+        Grüß dich!
+        Ein herzliches Willkommen!
+        Hallo, bist du es, den ich suche?
+        Zuhause ist es doch am schönsten!
+        Schau mal wer da ist!
+        Der verlorene Sohn kehrt heim!
+        Willkommen in deinem Schloss!
+        Was für eine nette Überraschung!
+        Dein Zuhause hat dich vermisst!
+        Tritt ein und fühl dich wohl!
+        Ah, der Meister kehrt zurück!
+        Deine Anwesenheit ehrt uns!
+        Willkommen in deinem Refugium!
+    
+    funny_greetings:
+      name: "Funny Greetings"
+      description: "List of funny greeting messages (one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        Schau mal wer sich hier blicken lässt!
+        Die Legende ist eingetroffen!
+        Warnung: Awesome Person detected!
+        Lasst die Konfetti regnen!
+        Alarm: VIP hat das Gebäude betreten!
+        Meine Damen und Herren, der Star ist da!
+        Roter Teppich ist ausgerollt!
+        Das Warten hat ein Ende - du bist da!
+        Trommelwirbel bitte...
+        Breaking News: Du bist zuhause!
+        Mission 'Heimkehr' erfolgreich!
+        Trautes Heim, Glück allein!
+        Dein Thron wartet schon!
+        Die Macht ist stark in diesem einen!
+        Willkommen zurück in der Kommandozentrale!
+    
+    movie_greetings:
+      name: "Movie Quote Greetings"
+      description: "List of movie quote greeting messages (one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        Möge die Macht mit dir sein!
+        Lebe lang und in Frieden!
+        Es geht doch nichts über Zuhause!
+        Willkommen in der Matrix!
+        Bis zur Unendlichkeit und... nach Hause!
+        Ich komme wieder... Oh warte, du bist ja schon da!
+        Bond. Zuhause Bond.
+        Houston, der Bewohner ist gelandet!
+        Willkommen im Jurassic Home!
+        E.T. nach Hause telefonieren... Oh, du bist ja schon hier!
+    
+    december_greetings:
+      name: "December/Christmas Greetings"
+      description: "List of Christmas/winter greeting messages (one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        Komm rein und wärm dich auf!
+        Frohe Weihnachten und willkommen zuhause!
+        Ho ho ho, schau mal wer da ist!
+        Willkommen in deinem Winterwunderland!
+        Draußen ist's kalt - aber hier drin schön warm!
+        Schmückt die Hallen, du bist zuhause!
+        Kling Glöckchen klingelingeling!
+        Der Weihnachtself ist da!
+        Willkommen in deinem Weihnachtsparadies!
+        Das schönste Weihnachtsgeschenk - du bist zuhause!
+    
+    mail_notifications:
+      name: "Mail Notifications"
+      description: "List of mail notification messages (one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        Du hast Post im Briefkasten
+        Es liegt Post für dich bereit
+        Schau mal im Briefkasten nach, da ist was für dich
+    
+    waste_yellow_notifications:
+      name: "Yellow Waste Notifications"
+      description: "List of yellow waste collection notifications (one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        Vergiss nicht, den gelben Sack und das Altpapier rauszustellen
+        Heute kommt die Müllabfuhr für gelben Sack und Altpapier
+        Zeit für gelben Sack und Altpapier
+    
+    waste_black_notifications:
+      name: "Black Waste Notifications"
+      description: "List of black waste collection notifications (one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        Vergiss nicht, die schwarze und braune Tonne rauszustellen
+        Heute kommt die Müllabfuhr für Rest- und Biomüll
+        Zeit für Rest- und Biomüll
+    
+    window_notifications:
+      name: "Window Notifications"
+      description: "List of open window notifications (use {rooms} as placeholder, one per line)"
+      selector:
+        text:
+          multiline: true
+      default: |
+        In {rooms} sind noch Fenster offen
+        Bitte schließe die Fenster in {rooms}
+        Die Fenster in {rooms} stehen noch offen
 
 variables:
   # Helper variables for notifications
@@ -113,92 +261,20 @@ variables:
   windows_entity: !input open_windows_sensor
   windows_list_entity: !input open_windows_list
   slave_motion_entity: !input slave_motion_sensor
-  
-  # Greeting arrays
-  normal_greetings:
-    - "Welcome home!"
-    - "Hello!"
-    - "Nice to see you!"
-    - "Welcome back!"
-    - "Greetings!"
-    - "Hey, how are you?"
-    - "Nice to see you again!"
-    - "Hello, hello!"
-    - "Welcome to your smart home!"
-    - "Hi!"
-    - "Good to have you back!"
-    - "Hello friend!"
-    - "Hey, welcome home!"
-    - "Happy to see you!"
-    - "Hello sunshine!"
-    - "Hey superstar!"
-    - "Welcome to your castle!"
-    - "Home sweet home!"
-    - "Look who's here!"
-    - "The master returns!"
-    - "Your presence honors us!"
-  
-  funny_greetings:
-    - "Look who decided to show up!"
-    - "The legend has arrived!"
-    - "Warning: Awesome person detected!"
-    - "Let the confetti rain!"
-    - "Alert: VIP has entered the building!"
-    - "Ladies and gentlemen, the star is here!"
-    - "Red carpet is rolled out!"
-    - "The wait is over - you're here!"
-    - "Drumroll please..."
-    - "Breaking news: You're home!"
-    - "Mission 'Homecoming' successful!"
-    - "Home sweet home!"
-    - "Your throne awaits!"
-    - "The force is strong with this one!"
-    - "Welcome back to the command center!"
-  
-  movie_greetings:
-    - "May the force be with you!"
-    - "Live long and prosper!"
-    - "There's no place like home!"
-    - "Welcome to the Matrix!"
-    - "To infinity and... home!"
-    - "I'll be back... Oh wait, you're already here!"
-    - "Bond. Home Bond."
-    - "Houston, the resident has landed!"
-    - "Welcome to Jurassic Home!"
-    - "E.T. phone home... Oh, you're already here!"
-  
-  december_greetings:
-    - "Come in and warm up!"
-    - "Merry Christmas and welcome home!"
-    - "Ho ho ho, look who's here!"
-    - "Welcome to your winter wonderland!"
-    - "It's cold outside - but nice and warm in here!"
-    - "Deck the halls, you're home!"
-    - "Jingle bells, jingle bells!"
-    - "The Christmas elf is here!"
-    - "Welcome to your Christmas paradise!"
-    - "The best Christmas gift - you're home!"
-  
-  # Information notifications
-  mail_notifications:
-    - "You have mail in the mailbox"
-    - "There's mail waiting for you"
-    - "Check the mailbox, there's something for you"
-  
-  waste_yellow_notifications:
-    - "Don't forget to put out the yellow bag and paper"
-    - "Today is collection day for yellow bags and paper"
-    - "Time for yellow bags and paper"
-  
-  waste_black_notifications:
-    - "Don't forget to put out the black and brown bins"
-    - "Today is collection day for general and organic waste"
-    - "Time for general and organic waste"
-  
-  window_notifications:
-    - "Windows are still open in {rooms}"
-    - "Please close the windows in {rooms}"
-    - "The windows in {rooms} are still open"
+  max_daily_info: !input max_daily_info
+  lockout_duration: !input lockout_duration
+  greeting_probability: !input greeting_probability
+  notification_service: !input notification_service
+  daily_counter: !input daily_counter
+  normal_greetings_text: !input normal_greetings
+  funny_greetings_text: !input funny_greetings
+  movie_greetings_text: !input movie_greetings
+  december_greetings_text: !input december_greetings
+  mail_notifications_text: !input mail_notifications
+  waste_yellow_notifications_text: !input waste_yellow_notifications
+  waste_black_notifications_text: !input waste_black_notifications
+  window_notifications_text: !input window_notifications
+
 
 trigger:
   - platform: state
@@ -208,9 +284,9 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {% set counter_today = states('counter.smart_greeter_daily_counter') | int(0) %}
-      {% set max_daily = (input_max_daily_info | int(3)) %}
-      {% set lockout_minutes = (input_lockout_duration | int(15)) %}
+      {% set counter_today = states(daily_counter) | int(0) %}
+      {% set max_daily = max_daily_info | int(3) %}
+      {% set lockout_minutes = lockout_duration | int(15) %}
       {% set last_triggered = state_attr('automation.' + this.entity_id.split('.')[1], 'last_triggered') %}
       {% set lockout_expired = last_triggered == none or (now() - last_triggered).total_seconds() > (lockout_minutes * 60) %}
       {{ lockout_expired and (counter_today < max_daily or not (
@@ -239,6 +315,10 @@ action:
                     value_template: "{{ slave_motion_entity and is_state(slave_motion_entity, 'on') }}"
         sequence:
           - variables:
+              mail_notifications: "{{ mail_notifications_text.split('\n') | reject('equalto', '') | list }}"
+              waste_yellow_notifications: "{{ waste_yellow_notifications_text.split('\n') | reject('equalto', '') | list }}"
+              waste_black_notifications: "{{ waste_black_notifications_text.split('\n') | reject('equalto', '') | list }}"
+              window_notifications: "{{ window_notifications_text.split('\n') | reject('equalto', '') | list }}"
               info_texts: >
                 {% set texts = [] %}
                 {% if mailbox_entity and is_state(mailbox_entity, 'on') %}
@@ -263,9 +343,6 @@ action:
                   - condition: template
                     value_template: "{{ info_texts | length == 1 }}"
                 sequence:
-                  - service: notify.persistent_notification
-                    data:
-                      message: "{{ info_texts[0] }}"
                   - service: !input notification_service
                     data:
                       message: "{{ info_texts[0] }}"
@@ -284,7 +361,7 @@ action:
           # Increment daily counter
           - service: counter.increment
             target:
-              entity_id: counter.smart_greeter_daily_counter
+              entity_id: !input daily_counter
       
       # Random greeting when no slave motion and random chance
       - conditions:
@@ -293,11 +370,15 @@ action:
               {{ not (slave_motion_entity and is_state(slave_motion_entity, 'on')) }}
           - condition: template
             value_template: >
-              {{ (range(0, 100) | random) < (input_greeting_probability | int(50)) }}
+              {{ (range(0, 100) | random) < (greeting_probability | int(50)) }}
         sequence:
           - variables:
               current_month: "{{ now().month }}"
               current_hour: "{{ now().hour }}"
+              normal_greetings: "{{ normal_greetings_text.split('\n') | reject('equalto', '') | list }}"
+              funny_greetings: "{{ funny_greetings_text.split('\n') | reject('equalto', '') | list }}"
+              movie_greetings: "{{ movie_greetings_text.split('\n') | reject('equalto', '') | list }}"
+              december_greetings: "{{ december_greetings_text.split('\n') | reject('equalto', '') | list }}"
               greeting_pool: >
                 {% set pool = normal_greetings %}
                 {% if range(0, 100) | random < 30 %}
