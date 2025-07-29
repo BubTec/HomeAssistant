@@ -1,221 +1,241 @@
-# Smart Frost & Ice Warning System
+# German Ice Warning System (eiswarnung.de)
 
-This Home Assistant blueprint provides intelligent frost and ice warnings based on weather data and temperature sensors. Perfect for car owners who want to know when they need to scrape ice from their windscreens, or anyone wanting frost protection alerts for plants and outdoor equipment.
+This Home Assistant blueprint provides professional ice warnings using the German eiswarnung.de API for accurate frost predictions. Perfect for German locations with precise windscreen scraping forecasts based on professional meteorological data.
 
 ## Features
 
-- ❄️ **Two Warning Levels**: High risk (ice scraping definitely needed) and medium risk (possibly needed)
-- 🌡️ **Multiple Temperature Sources**: Works with weather entities, temperature sensors, or both
-- ⏰ **Flexible Scheduling**: Daily morning warnings plus optional hourly updates
-- 📱 **Customizable Messages**: Personalize warning messages with temperature placeholders
-- 🏠 **Location-Aware**: Add location names for personalized messages
+- ❄️ **Professional Ice Forecasts**: Uses eiswarnung.de API for accurate German weather predictions
+- 🎯 **Two Warning Levels**: Level 1 (ice scraping definitely needed), Level 2 (possibly needed)
+- 🚗 **Car-Focused**: Specifically designed for windscreen ice warnings
+- 🌡️ **Temperature Integration**: Optional local temperature sensor for additional context
+- ⏰ **Smart Scheduling**: Morning warnings plus real-time updates when forecasts change
+- 📱 **German Messages**: Native German notifications (customizable)
 - 📅 **Weekend Control**: Choose whether to include weekend warnings
-- 🔄 **Real-time Updates**: Optional hourly temperature checks for changing conditions
 
-## How It Works
+## Required Setup
 
-1. **Temperature Collection**: Gets temperature from configured sensors or weather entities
-2. **Risk Assessment**: Compares temperature against configurable thresholds
-3. **Smart Notifications**: Sends appropriate warnings based on risk level and time
-4. **History Logging**: Records temperature checks for debugging and history
+### 1. Get eiswarnung.de API Key
+
+1. Visit [eiswarnung.de](https://www.eiswarnung.de/) 
+2. Register for an API account
+3. Note your API key, latitude, and longitude
+
+### 2. Configure RESTful Sensor
+
+Add this to your `configuration.yaml`:
+
+```yaml
+rest:
+  - resource: "https://api.eiswarnung.de?key=YOUR_API_KEY&lat=YOUR_LATITUDE&lng=YOUR_LONGITUDE"
+    name: "Eiswarnung Forecast ID"
+    scan_interval: 7200  # Update every 2 hours
+    value_template: >
+      {% if value_json.result is defined and value_json.result.forecastId is defined %}
+        {{ value_json.result.forecastId }}
+      {% else %}
+        0
+      {% endif %}
+    unit_of_measurement: "level"
+```
+
+**Example for Munich:**
+```yaml
+rest:
+  - resource: "https://api.eiswarnung.de?key=your_key_here&lat=48.1351&lng=11.5820"
+    name: "Eiswarnung Forecast ID"
+    scan_interval: 7200
+    value_template: >
+      {% if value_json.result is defined and value_json.result.forecastId is defined %}
+        {{ value_json.result.forecastId }}
+      {% else %}
+        0
+      {% endif %}
+    unit_of_measurement: "level"
+```
+
+### 3. Restart Home Assistant
+
+After adding the sensor configuration, restart Home Assistant to create the sensor.
+
+### 4. Import and Configure Blueprint
+
+- Import the blueprint
+- Set **Eiswarnung Forecast Sensor** to `sensor.eiswarnung_forecast_id`
+- Configure other options as needed
+
+## Warning Levels
+
+The eiswarnung.de API provides these forecast levels:
+
+| Level | Meaning | Action |
+|-------|---------|--------|
+| **0** | No ice expected | No warning (optional good news message) |
+| **1** | High ice risk | Definitely scrape windscreen |
+| **2** | Medium ice risk | Possibly scrape windscreen |
 
 ## Configuration
 
 ### Required Settings
 
-- **Weather Entity** OR **Temperature Sensor**: At least one temperature source
-- **Notification Service**: Where to send the warnings
+- **Eiswarnung Forecast Sensor**: `sensor.eiswarnung_forecast_id` (created above)
+- **Notification Service**: Where to send warnings
 
-### Temperature Thresholds
+### Optional Settings
 
-- **High Risk** (default 0°C): Temperature below which ice scraping is definitely needed
-- **Medium Risk** (default 3°C): Temperature below which ice scraping might be needed
+- **Temperature Sensor**: Local temperature for additional context (car, garage, outdoor)
+- **Location Name**: Personalize messages ("at your car", "in Munich")
+- **Weekend Warnings**: Include/exclude weekend notifications
+- **Custom Messages**: Modify warning texts
 
-### Timing Options
+## Example Messages
 
-- **Warning Time** (default 07:00): When to send daily frost warnings
-- **Weekend Warnings** (default false): Whether to warn on weekends
-- **Hourly Checks** (default true): Real-time temperature monitoring
-
-### Message Customization
-
-Both warning messages support placeholders:
-- `{temperature}`: Current temperature value
-- `{location}`: Location name (if configured)
-
-## Supported Temperature Sources
-
-### Weather Entities
-- **OpenWeatherMap**: `weather.openweathermap`
-- **AccuWeather**: `weather.accuweather`
-- **Weather.gov**: `weather.weather_gov_home`
-- **DarkSky**: `weather.dark_sky`
-- **Met.no**: `weather.met_no`
-
-### Temperature Sensors
-- **ESPHome/Tasmota**: `sensor.outdoor_temperature`
-- **Z-Wave/Zigbee**: `sensor.garden_temperature`
-- **Xiaomi**: `sensor.xiaomi_outdoor_temp`
-- **Car Integration**: `sensor.car_outside_temperature`
-- **Weather Station**: `sensor.weather_station_temp`
-
-## Warning Examples
-
-### High Risk (≤0°C)
+### Level 1 (High Risk)
 ```
-❄️ High Frost Warning
-High frost risk! You will definitely need to scrape ice 
-from your windscreen before driving. Current temperature: -2°C
+❄️ Eiswarnung Stufe 1!
+Du musst heute die Scheiben kratzen, bevor du mit dem Auto fährst!
+Die Temperatur bei deinem Auto liegt bei -3°C.
 ```
 
-### Medium Risk (0°C to 3°C)
+### Level 2 (Medium Risk)
 ```
-🌡️ Possible Frost Warning  
-Possible frost risk! You might need to scrape ice from 
-your windscreen. Current temperature: 1.5°C
-```
-
-### No Risk (>3°C)
-```
-☀️ No Frost Expected
-Good news! No frost expected today. Temperature: 8°C
-Weather: Partly cloudy
+🌡️ Eiswarnung Stufe 2!
+Vielleicht musst du heute die Scheiben kratzen, bevor du mit dem Auto fährst!
+Die Temperatur in der Garage liegt bei 1°C.
 ```
 
-## Setup Instructions
-
-1. **Import Blueprint**: Add the YAML file to your blueprints folder
-2. **Create Automation**: Use the blueprint to create a new automation
-3. **Configure Temperature Source**: Select weather entity or temperature sensor
-4. **Set Thresholds**: Adjust temperature thresholds for your climate
-5. **Choose Notification**: Select your preferred notification service
-6. **Customize Messages**: Personalize warning messages if desired
-7. **Test**: Set a future time and verify notifications work
+### Level 0 (No Risk)
+```
+☀️ Keine Eiswarnung
+Gute Nachrichten! Heute ist kein Eis zu erwarten bei deinem Auto.
+Temperatur: 8°C.
+```
 
 ## Advanced Configuration
 
-### Multiple Location Setup
-Create separate automations for different locations:
-```yaml
-# Home frost warning
-Location Name: "at home"
-Temperature Sensor: sensor.home_outdoor_temp
+### Multiple Locations
 
-# Garage frost warning  
-Location Name: "in the garage"
+Create separate sensors for different locations:
+
+```yaml
+rest:
+  # Home location
+  - resource: "https://api.eiswarnung.de?key=YOUR_KEY&lat=52.5200&lng=13.4050"
+    name: "Eiswarnung Home"
+    scan_interval: 7200
+    value_template: "{{ value_json.result.forecastId if value_json.result.forecastId is defined else 0 }}"
+  
+  # Work location  
+  - resource: "https://api.eiswarnung.de?key=YOUR_KEY&lat=48.1351&lng=11.5820"
+    name: "Eiswarnung Work"
+    scan_interval: 7200
+    value_template: "{{ value_json.result.forecastId if value_json.result.forecastId is defined else 0 }}"
+```
+
+Then create separate automations for each location.
+
+### Car Integration
+
+Perfect for car temperature sensors:
+
+```yaml
+# Blueprint Configuration
+Eiswarnung Forecast Sensor: sensor.eiswarnung_forecast_id
+Temperature Sensor: sensor.car_outside_temperature  # VW Connect, BMW, etc.
+Location Name: "bei deinem Auto"
+```
+
+### Garage/Carport Setup
+
+```yaml
+# Blueprint Configuration  
 Temperature Sensor: sensor.garage_temperature
+Location Name: "in der Garage"
+High Risk Message: "❄️ Eiswarnung! Scheiben kratzen nötig. Garage: {temp_info}"
 ```
-
-### Car Integration Example
-```yaml
-Weather Entity: weather.openweathermap
-Temperature Sensor: sensor.car_outside_temperature
-Location Name: "at your car"
-High Risk Message: "🚗 Car frost alert! Scrape windscreen before driving. Temperature: {temperature}°C"
-```
-
-### Smart Thresholds by Season
-Use different automations for winter/summer with different thresholds:
-- **Winter**: High ≤-2°C, Medium ≤1°C
-- **Summer**: High ≤0°C, Medium ≤3°C
-
-## Notification Services
-
-### Mobile Apps
-```yaml
-Notification Service: notify.mobile_app_yourphone
-```
-
-### TTS/Alexa
-```yaml
-Notification Service: tts.google_translate_say
-# or
-Notification Service: notify.alexa_media_echo_dot
-```
-
-### Multiple Services
-Create multiple automations with the same settings but different notification services for redundancy.
-
-## Temperature Source Priority
-
-The blueprint uses this priority order:
-1. **Temperature Sensor** (if configured and available)
-2. **Weather Entity Current Temperature** (if sensor unavailable)
-3. **Weather Entity Forecast** (if current temp unavailable)
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **No Notifications**: 
-   - Check if temperature source is providing valid data
-   - Verify notification service is working
-   - Check weekend settings if it's a weekend
+1. **No Sensor Data**:
+   - Check if API key is valid
+   - Verify latitude/longitude coordinates
+   - Check Home Assistant logs for REST errors
+   - Ensure sensor name matches blueprint configuration
 
-2. **Wrong Temperature**:
-   - Ensure sensor/weather entity is working correctly
-   - Check logbook for temperature readings
-   - Verify temperature sensor device class
+2. **Wrong Location**:
+   - Verify coordinates on a map
+   - Use more precise decimal places
+   - Check if coordinates are within Germany
 
-3. **Too Many/Few Warnings**:
-   - Adjust threshold temperatures
-   - Disable hourly checks if too frequent
-   - Check weekend warning setting
+3. **No Notifications**:
+   - Test notification service separately
+   - Check weekend warning settings
+   - Verify trigger times
 
-### Testing
+### Testing the Sensor
 
-1. **Manual Temperature Test**: Temporarily set threshold above current temperature
-2. **Time Test**: Set warning time to a few minutes in the future
-3. **Service Test**: Use Developer Tools → Services to test notification service
+Check sensor status in Developer Tools:
+- Go to **Developer Tools** → **States**
+- Find `sensor.eiswarnung_forecast_id`
+- Value should be 0, 1, or 2
+
+### API Rate Limits
+
+- Free tier: Limited requests per day
+- Update interval: 2 hours recommended
+- Avoid intervals under 1 hour
+
+## German Coordinates Reference
+
+| City | Latitude | Longitude |
+|------|----------|-----------|
+| Berlin | 52.5200 | 13.4050 |
+| Munich | 48.1351 | 11.5820 |
+| Hamburg | 53.5511 | 9.9937 |
+| Cologne | 50.9375 | 6.9603 |
+| Frankfurt | 50.1109 | 8.6821 |
+| Stuttgart | 48.7758 | 9.1829 |
+| Düsseldorf | 51.2277 | 6.7735 |
+| Leipzig | 51.3397 | 12.3731 |
 
 ## Integration Examples
 
-### With Plant Protection
+### With Smart Car Systems
+
 ```yaml
-High Risk Message: "❄️ Frost warning! Protect your plants and scrape car windscreen. Temperature: {temperature}°C"
-Medium Risk Message: "🌱 Light frost possible. Check sensitive plants and car windscreen. Temperature: {temperature}°C"
+# Works great with:
+- VW Connect (sensor.car_outside_temperature)
+- BMW Connected Drive
+- Mercedes me
+- Tesla integration
 ```
 
-### With Pool/Garden Systems
+### With Home Automation
+
 ```yaml
-Location Name: "in the garden"
-High Risk Message: "❄️ Hard frost warning! Turn off garden water and protect equipment. Temperature: {temperature}°C"
+# Trigger other automations:
+- Turn on heated car seats
+- Activate garage heater  
+- Send family notifications
+- Start car warming systems
 ```
 
-### With Smart Home Integration
-Use with other automations:
-- Turn on heated car seats when frost warning active
-- Send notifications to family members
-- Activate outdoor heating systems
-- Close pool covers automatically
+### With Weather Stations
 
-## Climate Adaptation
-
-### Northern Climates
 ```yaml
-High Frost Risk Threshold: -5°C
-Medium Frost Risk Threshold: 0°C
-```
-
-### Mild Climates  
-```yaml
-High Frost Risk Threshold: 2°C
-Medium Frost Risk Threshold: 5°C
-```
-
-### Desert/Dry Climates
-```yaml
-High Frost Risk Threshold: -2°C
-Medium Frost Risk Threshold: 2°C
+# Combine with local weather:
+Temperature Sensor: sensor.outdoor_temperature
+# Provides local vs. forecast comparison
 ```
 
 ## Version History
 
-- **v1.0**: Initial release with dual temperature sources and customizable thresholds
-- Smart message templating with location awareness
-- Hourly monitoring with weekend control
-- Full weather entity and sensor support
+- **v1.0**: Initial release with eiswarnung.de API integration
+- Professional German ice forecasting
+- RESTful sensor configuration
+- Level-based warning system
 
 ## Credits
 
-Converted from ioBroker EisScheibenWarnung script to Home Assistant blueprint, enhancing flexibility and adding international weather service support while maintaining the core frost detection functionality. 
+Enhanced version of the original ioBroker EisScheibenWarnung script, maintaining the proven eiswarnung.de API while adding Home Assistant flexibility and modern automation features. 

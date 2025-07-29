@@ -1,63 +1,70 @@
 blueprint:
-  name: Smart Frost & Ice Warning System
+  name: German Ice Warning System (eiswarnung.de)
   description: >
-    Sends automated frost and ice warnings based on weather data and temperature sensors.
-    Provides different warning levels and customizable messages for vehicle windscreen scraping
-    and general frost protection. Works with various weather APIs and temperature sources.
+    Advanced ice warning system using the German eiswarnung.de API for accurate frost predictions.
+    Provides professional ice forecasts with optional temperature sensor integration for additional context.
+    Perfect for German locations with precise windscreen scraping predictions.
   domain: automation
   input:
-    weather_entity:
-      name: Weather Entity
-      description: Weather entity that provides temperature forecast data
+    eiswarnung_sensor:
+      name: Eiswarnung Forecast Sensor
+      description: RESTful sensor that provides eiswarnung.de forecast ID (see README for setup)
       selector:
         entity:
-          domain: weather
+          domain: sensor
       default: ""
+    
+    eiswarnung_api_key:
+      name: API Key (for manual setup)
+      description: Your eiswarnung.de API key (shown for reference - configure in sensor)
+      selector:
+        text:
+      default: ""
+    
+    latitude:
+      name: Latitude (for reference)
+      description: Latitude for ice warning location (configure in sensor)
+      selector:
+        number:
+          min: 47.0
+          max: 55.0
+          step: 0.000001
+          mode: box
+      default: 52.5200
+    
+    longitude:
+      name: Longitude (for reference)
+      description: Longitude for ice warning location (configure in sensor)
+      selector:
+        number:
+          min: 5.0
+          max: 15.0
+          step: 0.000001
+          mode: box
+      default: 13.4050
     
     temperature_sensor:
       name: Temperature Sensor (Optional)
-      description: Additional temperature sensor (e.g., outdoor, car, garage)
+      description: Additional temperature sensor for local readings (e.g., car, garage)
       selector:
         entity:
           domain: sensor
           device_class: temperature
       default: ""
     
-    frost_threshold_high:
-      name: High Frost Risk Threshold
-      description: Temperature below which high frost risk warning is sent (°C)
-      selector:
-        number:
-          min: -10
-          max: 5
-          step: 0.5
-          unit_of_measurement: "°C"
-      default: 0
-    
-    frost_threshold_medium:
-      name: Medium Frost Risk Threshold  
-      description: Temperature below which medium frost risk warning is sent (°C)
-      selector:
-        number:
-          min: -5
-          max: 8
-          step: 0.5
-          unit_of_measurement: "°C"
-      default: 3
-    
     notification_service:
       name: Notification Service
-      description: Service to send frost warnings
+      description: Service to send ice warnings
       selector:
         text:
       default: "notify.persistent_notification"
     
     warning_time:
-      name: Warning Time
-      description: Time to send daily frost warnings
+      name: Morning Warning Time
+      description: Time to send daily ice warnings
       selector:
         time:
-      default: "07:00:00"
+      default: "07:30:00"
     
     weekend_warnings:
       name: Include Weekend Warnings
@@ -66,32 +73,27 @@ blueprint:
         boolean:
       default: false
     
+
+    
     high_risk_message:
-      name: High Risk Message
-      description: Message for high frost risk (ice scraping definitely needed)
+      name: High Risk Message (Level 1)
+      description: Message when ice scraping is definitely needed
       selector:
         text:
           multiline: true
-      default: "❄️ High frost risk! You will definitely need to scrape ice from your windscreen before driving. Current temperature: {temperature}°C"
+      default: "❄️ Eiswarnung Stufe 1! Du musst heute die Scheiben kratzen, bevor du mit dem Auto fährst!{temp_info}"
     
     medium_risk_message:
-      name: Medium Risk Message
-      description: Message for medium frost risk (ice scraping possibly needed)
+      name: Medium Risk Message (Level 2)
+      description: Message when ice scraping might be needed
       selector:
         text:
           multiline: true
-      default: "🌡️ Possible frost risk! You might need to scrape ice from your windscreen. Current temperature: {temperature}°C"
-    
-    use_hourly_checks:
-      name: Enable Hourly Temperature Checks
-      description: Check temperature every hour for real-time updates
-      selector:
-        boolean:
-      default: true
+      default: "🌡️ Eiswarnung Stufe 2! Vielleicht musst du heute die Scheiben kratzen, bevor du mit dem Auto fährst!{temp_info}"
     
     location_name:
       name: Location Name (Optional)
-      description: Name of location for personalized messages (e.g., "at your home", "in the garage")
+      description: Name for personalized messages (e.g., "at your car", "in Munich")
       selector:
         text:
       default: ""
@@ -99,10 +101,8 @@ blueprint:
 mode: single
 
 variables:
-  weather_entity: !input weather_entity
+  eiswarnung_sensor: !input eiswarnung_sensor
   temperature_sensor: !input temperature_sensor
-  frost_threshold_high: !input frost_threshold_high
-  frost_threshold_medium: !input frost_threshold_medium
   notification_service: !input notification_service
   weekend_warnings: !input weekend_warnings
   high_risk_message: !input high_risk_message
@@ -114,10 +114,9 @@ trigger:
     at: !input warning_time
     id: "morning_warning"
   
-  - platform: time_pattern
-    hours: "*"
-    id: "hourly_check"
-    enabled: !input use_hourly_checks
+  - platform: state
+    entity_id: !input eiswarnung_sensor
+    id: "sensor_update"
 
 condition:
   - condition: template
@@ -134,103 +133,90 @@ condition:
 
 action:
   - variables:
-      current_temp: >
-        {% if temperature_sensor != "" and states(temperature_sensor) not in ['unknown', 'unavailable'] %}
-          {{ states(temperature_sensor) | float }}
-        {% elif weather_entity != "" and state_attr(weather_entity, 'temperature') is not none %}
-          {{ state_attr(weather_entity, 'temperature') | float }}
-        {% else %}
-          null
-        {% endif %}
-      
-      forecast_temp: >
-        {% if weather_entity != "" %}
-          {% set forecast = state_attr(weather_entity, 'forecast') %}
-          {% if forecast and forecast | length > 0 %}
-            {% set tomorrow = forecast[0] %}
-            {% if tomorrow.templow is defined %}
-              {{ tomorrow.templow | float }}
-            {% elif tomorrow.temperature is defined %}
-              {{ tomorrow.temperature | float }}
-            {% else %}
-              null
-            {% endif %}
-          {% else %}
-            null
-          {% endif %}
-        {% else %}
-          null
-        {% endif %}
-      
-      reference_temp: >
-        {% if current_temp is not none %}
-          {{ current_temp }}
-        {% elif forecast_temp is not none %}
-          {{ forecast_temp }}
-        {% else %}
-          null
-        {% endif %}
-      
       location_text: >
         {% if location_name != "" %}
           {{ " " + location_name }}
         {% else %}
           ""
         {% endif %}
+      
+      forecast_id: >
+        {% if eiswarnung_sensor != "" and states(eiswarnung_sensor) not in ['unknown', 'unavailable'] %}
+          {{ states(eiswarnung_sensor) | int }}
+        {% else %}
+          0
+        {% endif %}
+      
+      current_temp: >
+        {% if temperature_sensor != "" and states(temperature_sensor) not in ['unknown', 'unavailable'] %}
+          {{ states(temperature_sensor) | float }}
+        {% else %}
+          null
+        {% endif %}
+      
+      temp_info: >
+        {% if current_temp is not none %}
+          {{ " Die Temperatur" + location_text + " liegt bei " + current_temp|string + "°C." }}
+        {% else %}
+          ""
+        {% endif %}
+
+  # Store forecast ID for history
+  - service: input_number.set_value
+    target:
+      entity_id: input_number.ice_warning_level
+    data:
+      value: "{{ forecast_id }}"
+    continue_on_error: true
 
   - choose:
-      # High frost risk
+      # High ice risk (Level 1)
       - conditions:
           - condition: template
-            value_template: "{{ reference_temp is not none and reference_temp <= frost_threshold_high }}"
+            value_template: "{{ forecast_id == 1 }}"
         sequence:
           - service: "{{ notification_service }}"
             data:
-              title: "❄️ High Frost Warning"
+              title: "❄️ Eiswarnung Stufe 1"
               message: >
-                {{ high_risk_message.replace('{temperature}', reference_temp|string).replace('{location}', location_text) }}
-                {% if trigger.id == "hourly_check" %}
-                (Updated at {{ now().strftime('%H:%M') }})
+                {{ high_risk_message.replace('{temp_info}', temp_info) }}
+                {% if trigger.id == "sensor_update" %}
+                (Aktualisiert um {{ now().strftime('%H:%M') }})
                 {% endif %}
 
-      # Medium frost risk
+      # Medium ice risk (Level 2)  
       - conditions:
           - condition: template
-            value_template: >
-              {{ reference_temp is not none and 
-                 reference_temp > frost_threshold_high and 
-                 reference_temp <= frost_threshold_medium }}
+            value_template: "{{ forecast_id == 2 }}"
         sequence:
           - service: "{{ notification_service }}"
             data:
-              title: "🌡️ Possible Frost Warning"
+              title: "🌡️ Eiswarnung Stufe 2"
               message: >
-                {{ medium_risk_message.replace('{temperature}', reference_temp|string).replace('{location}', location_text) }}
-                {% if trigger.id == "hourly_check" %}
-                (Updated at {{ now().strftime('%H:%M') }})
+                {{ medium_risk_message.replace('{temp_info}', temp_info) }}
+                {% if trigger.id == "sensor_update" %}
+                (Aktualisiert um {{ now().strftime('%H:%M') }})
                 {% endif %}
 
-      # No warning needed - only log during morning check
+      # No warning (Level 0) - only notify in morning
       - conditions:
           - condition: template
-            value_template: "{{ trigger.id == 'morning_warning' and reference_temp is not none and reference_temp > frost_threshold_medium }}"
+            value_template: "{{ trigger.id == 'morning_warning' and forecast_id == 0 }}"
         sequence:
           - service: "{{ notification_service }}"
             data:
-              title: "☀️ No Frost Expected"
+              title: "☀️ Keine Eiswarnung"
               message: >
-                Good news! No frost expected today. Temperature{{ location_text }}: {{ reference_temp }}°C
-                {% if weather_entity != "" %}
-                Weather: {{ states(weather_entity) }}
-                {% endif %}
+                Gute Nachrichten! Heute ist kein Eis zu erwarten{{ location_text }}.
+                {{ temp_info.replace(' Die Temperatur', 'Temperatur') if temp_info != '' else '' }}
 
-  # Store current temperature for history/debugging
+  # Log for debugging
   - service: logbook.log
     data:
-      name: "Frost Warning System"
+      name: "German Ice Warning"
       message: >
-        Temperature check{{ location_text }}: {{ reference_temp }}°C
-        {% if current_temp != reference_temp %}
-        (Current: {{ current_temp }}°C, Forecast: {{ forecast_temp }}°C)
+        Eiswarnung Check{{ location_text }}: Level {{ forecast_id }}
+        {% if current_temp is not none %}
+        (Temperatur: {{ current_temp }}°C)
         {% endif %}
-        Thresholds: High ≤{{ frost_threshold_high }}°C, Medium ≤{{ frost_threshold_medium }}°C 
+        Sensor: {{ eiswarnung_sensor }} 
