@@ -1,0 +1,358 @@
+blueprint:
+  name: "Cat Litter Box Counter and Monitor"
+  description: "Comprehensive cat litter box monitoring system that tracks usage, reminds for cleaning, and monitors cleaning tools"
+  domain: automation
+  input:
+    cat_door_sensor:
+      name: "Cat Door Occupancy Sensor"
+      description: "Binary sensor that detects movement at the cat door"
+      selector:
+        entity:
+          domain: binary_sensor
+    
+    cleaning_tool_sensor:
+      name: "Cleaning Tool Contact Sensor"
+      description: "Binary sensor that detects when cleaning tool is opened/taken"
+      selector:
+        entity:
+          domain: binary_sensor
+    
+    usage_counter:
+      name: "Usage Counter Helper"
+      description: "Counter helper to track current usage since last cleaning"
+      selector:
+        entity:
+          domain: counter
+    
+    total_counter:
+      name: "Total Usage Counter Helper"
+      description: "Counter helper to track total usage"
+      selector:
+        entity:
+          domain: counter
+    
+    clean_counter:
+      name: "Cleaning Counter Helper"  
+      description: "Counter helper to track number of cleanings"
+      selector:
+        entity:
+          domain: counter
+    
+    needs_cleaning_helper:
+      name: "Needs Cleaning Boolean Helper"
+      description: "Input boolean to track if litter box needs cleaning"
+      selector:
+        entity:
+          domain: input_boolean
+    
+    cleaning_tool_alert:
+      name: "Cleaning Tool Alert Boolean Helper"
+      description: "Input boolean to track if cleaning tool is left open"
+      selector:
+        entity:
+          domain: input_boolean
+    
+    cat_presence_helper:
+      name: "Cat Presence Detection Helper"
+      description: "Input boolean to track if cat presence is detected"
+      selector:
+        entity:
+          domain: input_boolean
+    
+    notification_service:
+      name: "Notification Service"
+      description: "Service to send notifications (e.g., notify.mobile_app_phone)"
+      selector:
+        text:
+      default: "notify.persistent_notification"
+    
+    warning_threshold:
+      name: "Usage Warning Threshold"
+      description: "Number of uses before cleaning warning"
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+      default: 4
+    
+    presence_threshold:
+      name: "Presence Threshold (seconds)"
+      description: "Minimum time cat must be present to count as valid usage"
+      selector:
+        number:
+          min: 10
+          max: 120
+          step: 5
+      default: 30
+    
+    visit_duration:
+      name: "Visit Duration (seconds)"
+      description: "Time to wait after presence ends before counting usage"
+      selector:
+        number:
+          min: 30
+          max: 300
+          step: 10
+      default: 120
+    
+    cleaning_completion_time:
+      name: "Cleaning Completion Time (seconds)"
+      description: "Time tool must be open to register as cleaning"
+      selector:
+        number:
+          min: 15
+          max: 180
+          step: 5
+      default: 45
+
+variables:
+  warning_threshold: !input warning_threshold
+  presence_threshold: !input presence_threshold
+  visit_duration: !input visit_duration
+  cleaning_completion_time: !input cleaning_completion_time
+  cat_door_sensor: !input cat_door_sensor
+  cleaning_tool_sensor: !input cleaning_tool_sensor
+  usage_counter: !input usage_counter
+  total_counter: !input total_counter
+  clean_counter: !input clean_counter
+  needs_cleaning_helper: !input needs_cleaning_helper
+  cleaning_tool_alert: !input cleaning_tool_alert
+  cat_presence_helper: !input cat_presence_helper
+  notification_service: !input notification_service
+
+trigger:
+  - platform: state
+    entity_id: !input cat_door_sensor
+    to: 'on'
+    id: "cat_door_opened"
+  
+  - platform: state
+    entity_id: !input cat_door_sensor
+    to: 'off'
+    id: "cat_door_closed"
+  
+  - platform: state
+    entity_id: !input cleaning_tool_sensor
+    id: "cleaning_tool_change"
+  
+  - platform: state
+    entity_id: !input usage_counter
+    id: "usage_counter_change"
+  
+  - platform: time_pattern
+    hours: "/1"
+    minutes: 0
+    id: "hourly_check"
+  
+  - platform: time_pattern
+    hours: "8,12,16,20"
+    minutes: 0
+    id: "inactivity_check"
+  
+  - platform: homeassistant
+    event: start
+    id: "initial_check"
+
+condition: []
+
+action:
+  - choose:
+      # Handle cat door opened
+      - conditions:
+          - condition: trigger
+            id: "cat_door_opened"
+          - condition: template
+            value_template: "{{ states(cleaning_tool_sensor) == 'off' }}"
+        sequence:
+          - delay:
+              seconds: "{{ presence_threshold }}"
+          - if:
+              - condition: template
+                value_template: "{{ states(cat_door_sensor) == 'on' }}"
+            then:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: !input cat_presence_helper
+
+      # Handle cat door closed
+      - conditions:
+          - condition: trigger
+            id: "cat_door_closed"
+          - condition: template
+            value_template: "{{ states(cat_presence_helper) == 'on' }}"
+          - condition: template
+            value_template: "{{ states(cleaning_tool_sensor) == 'off' }}"
+        sequence:
+          - delay:
+              seconds: "{{ visit_duration }}"
+          - if:
+              - condition: template
+                value_template: "{{ states(cat_door_sensor) == 'off' }}"
+            then:
+              - service: counter.increment
+                target:
+                  entity_id: !input usage_counter
+              - service: counter.increment
+                target:
+                  entity_id: !input total_counter
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: !input cat_presence_helper
+
+      # Handle cleaning tool changes
+      - conditions:
+          - condition: trigger
+            id: "cleaning_tool_change"
+        sequence:
+          - choose:
+              # Cleaning tool opened
+              - conditions:
+                  - condition: template
+                    value_template: "{{ trigger.to_state.state == 'on' }}"
+                sequence:
+                  - service: input_boolean.turn_on
+                    target:
+                      entity_id: !input cleaning_tool_alert
+                  - service: !input notification_service
+                    data:
+                      message: "Cat litter cleaning started. Don't forget to put the tool back!"
+                  - delay:
+                      seconds: "{{ cleaning_completion_time }}"
+                  - if:
+                      - condition: template
+                        value_template: "{{ states(cleaning_tool_sensor) == 'on' }}"
+                    then:
+                      - service: counter.reset
+                        target:
+                          entity_id: !input usage_counter
+                      - service: counter.increment
+                        target:
+                          entity_id: !input clean_counter
+                      - service: input_boolean.turn_off
+                        target:
+                          entity_id: !input needs_cleaning_helper
+                      - service: input_boolean.turn_off
+                        target:
+                          entity_id: !input cat_presence_helper
+                      - service: !input notification_service
+                        data:
+                          message: "Cat litter cleaning completed and counters reset."
+
+              # Cleaning tool closed
+              - conditions:
+                  - condition: template
+                    value_template: "{{ trigger.to_state.state == 'off' }}"
+                sequence:
+                  - service: input_boolean.turn_off
+                    target:
+                      entity_id: !input cleaning_tool_alert
+                  - service: !input notification_service
+                    data:
+                      message: "Cleaning tool properly stored."
+
+      # Handle usage counter changes
+      - conditions:
+          - condition: trigger
+            id: "usage_counter_change"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ states(usage_counter) | int >= warning_threshold }}"
+            then:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: !input needs_cleaning_helper
+              - service: !input notification_service
+                data:
+                  message: >
+                    {% set count = states(usage_counter) | int %}
+                    {% set messages = [
+                      "The litter box has been used " ~ count ~ " times since last cleaning. Please clean soon.",
+                      "A message from your cat: MEOW! Please clean my litter box. I've used it " ~ count ~ " times already.",
+                      "Hey human, " ~ count ~ " times used and no fresh litter? I think I'll smell this tomorrow too!",
+                      "Attention! Litter box has been visited " ~ count ~ " times. Urgent cleaning needed before it becomes a wasteland!",
+                      "Meow! The litter box has seen " ~ count ~ " visits. Time for a refresh, or I might move to the living room...",
+                      "The litter box has been used " ~ count ~ " times. Do you perhaps have a heart for clean paws?",
+                      "The litter box is crying: Used " ~ count ~ " times and still no fresh litter? Where's the service?"
+                    ] %}
+                    {{ messages | random }}
+
+      # Hourly checks and reminders
+      - conditions:
+          - condition: trigger
+            id: "hourly_check"
+          - condition: time
+            after: "09:00:00"
+            before: "22:00:00"
+        sequence:
+          - choose:
+              # Send cleaning reminder if needed
+              - conditions:
+                  - condition: template
+                    value_template: "{{ states(needs_cleaning_helper) == 'on' }}"
+                sequence:
+                  - service: !input notification_service
+                    data:
+                      message: >
+                        {% set count = states(usage_counter) | int %}
+                        Reminder: The litter box still needs cleaning ({{ count }} uses).
+
+              # Send tool reminder if left open
+              - conditions:
+                  - condition: template
+                    value_template: "{{ states(cleaning_tool_alert) == 'on' }}"
+                sequence:
+                  - service: !input notification_service
+                    data:
+                      message: "Warning: The litter box cleaning tool is not properly stored."
+
+      # Check for prolonged inactivity (every 4 hours during day)
+      - conditions:
+          - condition: trigger
+            id: "inactivity_check"
+        sequence:
+          - if:
+              - condition: template
+                value_template: >
+                  {% set last_usage = states.sensor.date_time_iso | as_timestamp - (states[cat_door_sensor].last_changed | as_timestamp) %}
+                  {% set last_counter_change = states.sensor.date_time_iso | as_timestamp - (states[usage_counter].last_changed | as_timestamp) %}
+                  {{ (last_usage > 172800) and (last_counter_change > 172800) }}
+            then:
+              - service: !input notification_service
+                data:
+                  message: "Warning: No activity at the litter box for more than 48 hours. Please check on your cat!"
+
+      # Initial startup check
+      - conditions:
+          - condition: trigger
+            id: "initial_check"
+        sequence:
+          # Check if cleaning is already needed
+          - if:
+              - condition: template
+                value_template: "{{ states(usage_counter) | int >= warning_threshold }}"
+            then:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: !input needs_cleaning_helper
+              - service: !input notification_service
+                data:
+                  message: >
+                    {% set count = states(usage_counter) | int %}
+                    Initial check: The litter box has been used {{ count }} times since last cleaning. Please clean soon.
+          
+          # Check if cleaning tool is already open
+          - if:
+              - condition: template
+                value_template: "{{ states(cleaning_tool_sensor) == 'on' }}"
+            then:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: !input cleaning_tool_alert
+              - service: !input notification_service
+                data:
+                  message: "Initial check: Cleaning tool is not properly stored and needs attention."
+
+mode: parallel
+max: 10
