@@ -1,9 +1,9 @@
 blueprint:
-  name: Smart Volume Control for Media Players
+  name: Smart Volume Control for Smart Assistants
   description: >
-    Automatically adjusts volume levels of media players based on mode changes (e.g., night mode).
-    Supports ignore lists, special device handling, and configurable volume levels.
-    Perfect for Echo devices, speakers, and other media players that need context-aware volume control.
+    Automatically adjusts volume levels of smart assistants (Echo, Google Home, etc.) based on mode changes.
+    Supports both player volume and speak volume, ignore lists, special device handling, and configurable volume levels.
+    Perfect for Echo devices, Google Nest, and other smart assistants that need context-aware volume control.
   domain: automation
   input:
     mode_entity:
@@ -18,14 +18,43 @@ blueprint:
             - switch
       default: ""
     
-    media_players:
-      name: Media Players
-      description: Media players to control (leave empty to auto-discover all media_player entities)
+    volume_type:
+      name: Volume Control Type
+      description: Which volume entities to control
+      selector:
+        select:
+          options:
+            - label: "Player Volume Only"
+              value: "player"
+            - label: "Speak Volume Only" 
+              value: "speak"
+            - label: "Both Player and Speak Volume"
+              value: "both"
+      default: "both"
+    
+    assistant_entities:
+      name: Smart Assistant Volume Entities
+      description: Volume entities to control (leave empty to auto-discover Alexa, Google Home, etc.)
       selector:
         entity:
-          domain: media_player
+          domain: 
+            - number
+            - input_number
           multiple: true
       default: []
+    
+    entity_patterns:
+      name: Entity Pattern Filters
+      description: Patterns to identify smart assistant volume entities (one per line)
+      selector:
+        text:
+          multiline: true
+      default: |
+        alexa2.*.Echo-Devices.*.Player.volume
+        alexa2.*.Echo-Devices.*.Commands.speak-volume
+        media_player.*.volume_level
+        number.*_volume
+        input_number.*_volume
     
     low_volume:
       name: Low Volume Level
@@ -50,20 +79,26 @@ blueprint:
       default: 40
     
     ignore_entities:
-      name: Ignored Media Players
-      description: Media players to exclude from automatic volume control
+      name: Ignored Volume Entities
+      description: Volume entities to exclude from automatic control
       selector:
         entity:
-          domain: media_player
           multiple: true
       default: []
     
+    ignore_patterns:
+      name: Ignore Patterns
+      description: Device ID patterns to ignore (e.g., specific Echo serial numbers)
+      selector:
+        text:
+          multiline: true
+      default: ""
+    
     special_device:
       name: Special Device (Optional)
-      description: Media player that gets different volume levels
+      description: Volume entity that gets different volume levels
       selector:
         entity:
-          domain: media_player
       default: ""
     
     special_low_volume:
@@ -119,10 +154,13 @@ blueprint:
 
 variables:
   mode_entity: !input mode_entity
-  media_players: !input media_players
+  volume_type: !input volume_type
+  assistant_entities: !input assistant_entities
+  entity_patterns: !input entity_patterns
   low_volume: !input low_volume
   high_volume: !input high_volume
   ignore_entities: !input ignore_entities
+  ignore_patterns: !input ignore_patterns
   special_device: !input special_device
   special_low_volume: !input special_low_volume
   special_high_volume: !input special_high_volume
@@ -159,23 +197,87 @@ action:
       normal_volume: >
         {{ low_volume if mode_active else high_volume }}
       
-      # Get list of media players to control
-      players_list: >
-        {% if media_players | length > 0 %}
-          {{ media_players }}
+      # Get patterns to ignore
+      ignore_pattern_list: >
+        {% if ignore_patterns.strip() != '' %}
+          {{ ignore_patterns.strip().split('\n') }}
         {% else %}
-          {{ states.media_player | map(attribute='entity_id') | list }}
+          []
         {% endif %}
       
-      # Filter out ignored entities
-      filtered_players: >
-        {% set players = players_list %}
-        {% set ignored = ignore_entities %}
-        {{ players | reject('in', ignored) | list }}
+      # Get list of volume entities to control
+      volume_entities: >
+        {% if assistant_entities | length > 0 %}
+          {{ assistant_entities }}
+        {% else %}
+          {% set all_entities = [] %}
+          {% set patterns = entity_patterns.strip().split('\n') %}
+          
+          {# Find Alexa volume entities #}
+          {% if volume_type in ['player', 'both'] %}
+            {% for entity in states.number %}
+              {% if 'alexa2' in entity.entity_id and 'Player.volume' in entity.entity_id %}
+                {% set all_entities = all_entities + [entity.entity_id] %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          
+          {% if volume_type in ['speak', 'both'] %}
+            {% for entity in states.number %}
+              {% if 'alexa2' in entity.entity_id and 'speak-volume' in entity.entity_id %}
+                {% set all_entities = all_entities + [entity.entity_id] %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          
+          {# Find other volume entities based on patterns #}
+          {% for entity in states.number %}
+            {% if 'volume' in entity.entity_id.lower() and entity.entity_id not in all_entities %}
+              {% set all_entities = all_entities + [entity.entity_id] %}
+            {% endif %}
+          {% endfor %}
+          
+          {% for entity in states.input_number %}
+            {% if 'volume' in entity.entity_id.lower() and entity.entity_id not in all_entities %}
+              {% set all_entities = all_entities + [entity.entity_id] %}
+            {% endif %}
+          {% endfor %}
+          
+          {{ all_entities }}
+        {% endif %}
+      
+      # Filter out ignored entities and patterns
+      filtered_entities: >
+        {% set entities = volume_entities %}
+        {% set ignored_entities = ignore_entities %}
+        {% set ignored_patterns = ignore_pattern_list %}
+        {% set result = [] %}
+        
+        {% for entity in entities %}
+          {% set skip_entity = false %}
+          
+          {# Check ignore list #}
+          {% if entity in ignored_entities %}
+            {% set skip_entity = true %}
+          {% endif %}
+          
+          {# Check ignore patterns #}
+          {% for pattern in ignored_patterns %}
+            {% if pattern.strip() != '' and pattern.strip() in entity %}
+              {% set skip_entity = true %}
+            {% endif %}
+          {% endfor %}
+          
+          {% if not skip_entity %}
+            {% set result = result + [entity] %}
+          {% endif %}
+        {% endfor %}
+        
+        {{ result }}
 
-  # Control normal media players
+  # Control normal volume entities
   - repeat:
-      for_each: "{{ filtered_players }}"
+      for_each: "{{ filtered_entities }}"
       sequence:
         - condition: template
           value_template: "{{ repeat.item != special_device }}"
@@ -191,12 +293,43 @@ action:
         - delay:
             seconds: "{{ random_delay }}"
         
-        - service: media_player.volume_set
-          target:
-            entity_id: "{{ repeat.item }}"
-          data:
-            volume_level: "{{ normal_volume / 100 }}"
-          continue_on_error: true
+        # Use appropriate service based on entity domain
+        - choose:
+            # Number entities (most smart assistant volumes)
+            - conditions:
+                - condition: template
+                  value_template: "{{ repeat.item.startswith('number.') }}"
+              sequence:
+                - service: number.set_value
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    value: "{{ normal_volume }}"
+                  continue_on_error: true
+            
+            # Input number entities
+            - conditions:
+                - condition: template
+                  value_template: "{{ repeat.item.startswith('input_number.') }}"
+              sequence:
+                - service: input_number.set_value
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    value: "{{ normal_volume }}"
+                  continue_on_error: true
+            
+            # Media player entities (fallback)
+            - conditions:
+                - condition: template
+                  value_template: "{{ repeat.item.startswith('media_player.') }}"
+              sequence:
+                - service: media_player.volume_set
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    volume_level: "{{ normal_volume / 100 }}"
+                  continue_on_error: true
 
   # Control special device if specified
   - condition: template
@@ -205,9 +338,40 @@ action:
   - delay:
       seconds: "{{ special_delay }}"
   
-  - service: media_player.volume_set
-    target:
-      entity_id: "{{ special_device }}"
-    data:
-      volume_level: "{{ target_volume / 100 }}"
-    continue_on_error: true 
+  # Use appropriate service for special device
+  - choose:
+      # Number entities (most smart assistant volumes)
+      - conditions:
+          - condition: template
+            value_template: "{{ special_device.startswith('number.') }}"
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: "{{ special_device }}"
+            data:
+              value: "{{ target_volume }}"
+            continue_on_error: true
+      
+      # Input number entities
+      - conditions:
+          - condition: template
+            value_template: "{{ special_device.startswith('input_number.') }}"
+        sequence:
+          - service: input_number.set_value
+            target:
+              entity_id: "{{ special_device }}"
+            data:
+              value: "{{ target_volume }}"
+            continue_on_error: true
+      
+      # Media player entities (fallback)
+      - conditions:
+          - condition: template
+            value_template: "{{ special_device.startswith('media_player.') }}"
+        sequence:
+          - service: media_player.volume_set
+            target:
+              entity_id: "{{ special_device }}"
+            data:
+              volume_level: "{{ target_volume / 100 }}"
+            continue_on_error: true 
