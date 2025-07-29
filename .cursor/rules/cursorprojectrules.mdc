@@ -24,3 +24,10 @@ https://www.home-assistant.io/docs/automation/using_blueprints/
 
 Hier ein Beispiel:
 https://gist.github.com/Blackshome/6edfec0ff6a25c5da0d07b88dc908238
+
+
+
+Sei bei den Inputs für die Blueprints nicht zu restriktiv. Hier bitte immer eine Klasse wählen, die mit der logik funktioniert, aber möglichst viele optionen bietet.
+
+
+Bsp: Binary Sensor anstatt Motion Sensor.
