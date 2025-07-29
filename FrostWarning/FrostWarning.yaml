@@ -157,7 +157,7 @@ action:
             value_template: "{{ frost_level in [1, 2] }}"
         then:
           # Send frost warning to device
-          - service: "{{ notification_service }}"
+          - action: "{{ notification_service }}"
             data:
               title: "{{ notification_title }}"
               message: >-
@@ -166,6 +166,12 @@ action:
                 {% elif frost_level == 2 %}
                   Du musst eventuell kratzen! Frost-Level: {{ frost_level }}, Standort: {{ location_name }}
                 {% endif %}
+              data:
+                push:
+                  sound: "default"
+                channel: "frost_alerts"
+                ttl: 0
+                priority: high
           
           # Log warning sent
           - service: persistent_notification.create
