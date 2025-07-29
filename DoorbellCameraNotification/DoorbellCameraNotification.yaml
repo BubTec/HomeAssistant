@@ -207,8 +207,8 @@ action:
                     
             - action: fully_kiosk.load_url
               data:
+                device_id: "{{ device_id(repeat.item) }}"
                 url: "{{ kiosk_url }}"
-                entity_id: "{{ repeat.item }}"
   
   - alias: "Wait for door opener action"
     wait_for_trigger:
@@ -240,7 +240,7 @@ action:
                 
             - action: fully_kiosk.load_url
               data:
+                device_id: "{{ device_id(repeat.item) }}"
                 url: "{{ normal_url }}"
-                entity_id: "{{ repeat.item }}"
 
 mode: single 
