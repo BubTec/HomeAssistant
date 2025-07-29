@@ -110,9 +110,10 @@ blueprint:
     
     daily_counter:
       name: "Daily Counter Helper (counter.smart_greeter_daily_counter)"
-      description: "Counter helper to track daily announcements (counter, input_number, etc.)"
+      description: "Counter helper to track daily announcements"
       selector:
         entity:
+          domain: counter
     
     normal_greetings:
       name: "Normal Greetings"
