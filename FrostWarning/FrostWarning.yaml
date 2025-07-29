@@ -147,9 +147,10 @@ action:
       # Log warning sent
       - service: persistent_notification.create
         data:
-          title: "Frost Warning Sent"
+          title: "Eis Warnung Gesendet"
           message: >
-            Frost warning sent at {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
-            Location: {{ location_name }}
+            Eis Warnung gesendet am {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+            Standort: {{ location_name }}
+            Nachricht: {{ warning_message }}
 
 mode: single 
