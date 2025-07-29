@@ -64,7 +64,7 @@ blueprint:
       description: "Service to send notifications (e.g., notify.mobile_app_phone)"
       selector:
         text:
-      default: "notify.persistent_notification"
+      default: "notify.all_mobile"
     
     warning_threshold:
       name: "Usage Warning Threshold"
