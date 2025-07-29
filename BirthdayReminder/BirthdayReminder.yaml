@@ -1,0 +1,220 @@
+blueprint:
+  name: Birthday Reminder with Smart Notifications
+  description: >
+    Sends automated birthday reminders and congratulations for multiple people.
+    Provides different messages based on days remaining until birthday and age.
+    Supports multiple notification services and optional presence detection.
+  domain: automation
+  input:
+    birthday_data:
+      name: Birthday Data
+      description: 'JSON list of birthdays in format [{"name": "John", "date": "1990-05-15"}, {"name": "Jane", "date": "1985-12-03"}]'
+      selector:
+        text:
+          multiline: true
+      default: '[{"name": "Example Person", "date": "1990-01-01"}]'
+    
+    notification_service:
+      name: Notification Service
+      description: Service to send notifications (e.g., notify.mobile_app_phone, tts.google_translate_say)
+      selector:
+        text:
+      default: "notify.persistent_notification"
+    
+    media_player:
+      name: Media Player (Optional)
+      description: Media player for birthday music on the actual birthday
+      selector:
+        entity:
+          domain: media_player
+      default: ""
+    
+    presence_entity:
+      name: Presence Entity (Optional)
+      description: Entity to check if someone is home before sending notifications
+      selector:
+        entity:
+          domain: 
+            - person
+            - device_tracker
+            - binary_sensor
+            - input_boolean
+      default: ""
+    
+    morning_time:
+      name: Morning Notification Time
+      description: Time for morning birthday check
+      selector:
+        time:
+      default: "07:30:00"
+    
+    midday_time:
+      name: Midday Notification Time
+      description: Time for midday birthday check
+      selector:
+        time:
+      default: "12:00:00"
+    
+    evening_time:
+      name: Evening Notification Time
+      description: Time for evening birthday check
+      selector:
+        time:
+      default: "18:30:00"
+    
+    days_ahead:
+      name: Days Ahead for Notifications
+      description: How many days before birthday to start sending reminders
+      selector:
+        number:
+          min: 1
+          max: 30
+          step: 1
+      default: 7
+    
+    birthday_songs:
+      name: Birthday Songs (Optional)
+      description: List of birthday songs to play randomly (comma-separated)
+      selector:
+        text:
+          multiline: true
+      default: "Happy Birthday Song,Birthday Celebration Music,Birthday Wishes"
+
+mode: single
+
+variables:
+  birthday_list: !input birthday_data
+  notification_service: !input notification_service
+  media_player: !input media_player
+  presence_entity: !input presence_entity
+  days_ahead: !input days_ahead
+  birthday_songs: !input birthday_songs
+
+trigger:
+  - platform: time
+    at: !input morning_time
+  - platform: time
+    at: !input midday_time
+  - platform: time
+    at: !input evening_time
+
+condition:
+  - condition: template
+    value_template: >
+      {{ presence_entity == '' or is_state(presence_entity, 'home') or is_state(presence_entity, 'on') }}
+
+action:
+  - repeat:
+      for_each: "{{ birthday_list | from_json }}"
+      sequence:
+        - variables:
+            person_name: "{{ repeat.item.name }}"
+            birth_date: "{{ repeat.item.date }}"
+            birth_year: "{{ birth_date.split('-')[0] | int }}"
+            birth_month: "{{ birth_date.split('-')[1] }}"
+            birth_day: "{{ birth_date.split('-')[2] }}"
+            current_year: "{{ now().year }}"
+            this_year_birthday: "{{ current_year }}-{{ birth_month }}-{{ birth_day }}"
+            next_year_birthday: "{{ current_year + 1 }}-{{ birth_month }}-{{ birth_day }}"
+            age_this_year: "{{ current_year - birth_year }}"
+            age_next_year: "{{ (current_year + 1) - birth_year }}"
+            
+        - variables:
+            target_birthday: >
+              {% set today = now().date() %}
+              {% set this_year_bday = strptime(this_year_birthday, '%Y-%m-%d').date() %}
+              {% if this_year_bday >= today %}
+                {{ this_year_birthday }}
+              {% else %}
+                {{ next_year_birthday }}
+              {% endif %}
+            target_age: >
+              {% set today = now().date() %}
+              {% set this_year_bday = strptime(this_year_birthday, '%Y-%m-%d').date() %}
+              {% if this_year_bday >= today %}
+                {{ age_this_year }}
+              {% else %}
+                {{ age_next_year }}
+              {% endif %}
+            days_until: >
+              {% set today = now().date() %}
+              {% set target = strptime(target_birthday, '%Y-%m-%d').date() %}
+              {{ (target - today).days }}
+            age_suffix: >
+              {% set age = target_age | int %}
+              {% if age >= 20 %}
+                th
+              {% elif age % 10 == 1 and age % 100 != 11 %}
+                st
+              {% elif age % 10 == 2 and age % 100 != 12 %}
+                nd
+              {% elif age % 10 == 3 and age % 100 != 13 %}
+                rd
+              {% else %}
+                th
+              {% endif %}
+
+        - choose:
+            # Today is birthday
+            - conditions:
+                - condition: template
+                  value_template: "{{ days_until | int == 0 }}"
+              sequence:
+                - service: "{{ notification_service }}"
+                  data:
+                    title: "🎉 Birthday Today!"
+                    message: >
+                      Today {{ person_name }} celebrates their {{ target_age }}{{ age_suffix }} birthday! 
+                      Happy Birthday and all the best wishes! 🎂🎈
+                
+                # Play birthday music if media player is configured
+                - if:
+                    - condition: template
+                      value_template: "{{ media_player != '' and birthday_songs != '' }}"
+                  then:
+                    - delay: "00:00:10"
+                    - variables:
+                        song_list: "{{ birthday_songs.split(',') }}"
+                        random_song: "{{ song_list | random | trim }}"
+                    - service: media_player.play_media
+                      target:
+                        entity_id: "{{ media_player }}"
+                      data:
+                        media_content_id: "{{ random_song }}"
+                        media_content_type: "music"
+
+            # Tomorrow is birthday  
+            - conditions:
+                - condition: template
+                  value_template: "{{ days_until | int == 1 }}"
+              sequence:
+                - service: "{{ notification_service }}"
+                  data:
+                    title: "🎂 Birthday Tomorrow!"
+                    message: >
+                      Tomorrow {{ person_name }} will celebrate their {{ target_age }}{{ age_suffix }} birthday! 
+                      Don't forget to prepare something special! 🎁
+
+            # 2 days until birthday
+            - conditions:
+                - condition: template
+                  value_template: "{{ days_until | int == 2 }}"
+              sequence:
+                - service: "{{ notification_service }}"
+                  data:
+                    title: "📅 Birthday in 2 Days"
+                    message: >
+                      In {{ days_until }} days {{ person_name }} will turn {{ target_age }}. 
+                      Is everything prepared for the celebration? 🎊
+
+            # 3+ days until birthday
+            - conditions:
+                - condition: template
+                  value_template: "{{ days_until | int >= 3 and days_until | int <= days_ahead | int }}"
+              sequence:
+                - service: "{{ notification_service }}"
+                  data:
+                    title: "🗓️ Upcoming Birthday"
+                    message: >
+                      {{ person_name }}'s {{ target_age }}{{ age_suffix }} birthday is coming up in {{ days_until }} days 
+                      ({{ strptime(target_birthday, '%Y-%m-%d').strftime('%B %d') }})! 🎈 
