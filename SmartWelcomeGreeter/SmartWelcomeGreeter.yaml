@@ -24,6 +24,14 @@ blueprint:
       selector:
         text:
     
+    daily_counter:
+      name: "Daily Counter Helper"
+      description: "Counter helper to track daily announcements"
+      default: "counter.smart_greeter_daily_counter"
+      selector:
+        entity:
+          domain: counter
+    
     mailbox_sensor:
       name: "Mailbox Sensor (Optional)"
       description: "Binary sensor indicating if there's mail in the mailbox"
@@ -107,13 +115,6 @@ blueprint:
         number:
           min: 1
           max: 10
-    
-    daily_counter:
-      name: "Daily Counter Helper (counter.smart_greeter_daily_counter)"
-      description: "Counter helper to track daily announcements"
-      selector:
-        entity:
-          domain: counter
     
     normal_greetings:
       name: "Normal Greetings"
