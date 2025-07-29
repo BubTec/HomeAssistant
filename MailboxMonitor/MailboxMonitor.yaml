@@ -1,0 +1,117 @@
+blueprint:
+  name: Mailbox Monitor
+  description: |
+    Monitor your mailbox with two sensors - one for detecting mail insertion and another for detecting when the mailbox is emptied. 
+    Automatically tracks mailbox status and sends notifications when mail arrives.
+  domain: automation
+  input:
+    mail_inserted_sensor:
+      name: Mail Inserted Sensor
+      description: Binary sensor that detects when mail is inserted into the mailbox
+      selector:
+        entity:
+          filter:
+            - domain: binary_sensor
+    mailbox_emptied_sensor:
+      name: Mailbox Emptied Sensor
+      description: Binary sensor that detects when the mailbox is opened/emptied
+      selector:
+        entity:
+          filter:
+            - domain: binary_sensor
+    mailbox_status_helper:
+      name: Mailbox Status Helper
+      description: Input boolean to track if mailbox has mail (will be automatically controlled by this automation)
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+    notification_service:
+      name: Notification Service
+      description: Notification service to use when mail arrives
+      default: notify.notify
+      selector:
+        text:
+    notification_message:
+      name: Notification Message
+      description: Message to send when mail arrives
+      default: "You have mail in your mailbox!"
+      selector:
+        text:
+    enable_logging:
+      name: Enable Logging
+      description: Enable debug logging for mailbox events
+      default: true
+      selector:
+        boolean:
+
+mode: parallel
+max: 10
+
+trigger:
+  # Trigger 1: Mail inserted
+  - platform: state
+    entity_id: !input mail_inserted_sensor
+    to: 'on'
+    id: mail_inserted
+  
+  # Trigger 2: Mailbox emptied
+  - platform: state
+    entity_id: !input mailbox_emptied_sensor
+    to: 'on'
+    id: mailbox_emptied
+  
+  # Trigger 3: Mailbox status changed to true (has mail)
+  - platform: state
+    entity_id: !input mailbox_status_helper
+    to: 'on'
+    id: status_has_mail
+
+condition: []
+
+action:
+  - choose:
+      # When mail is inserted
+      - conditions:
+          - condition: trigger
+            id: mail_inserted
+        sequence:
+          - if:
+              - condition: template
+                value_template: !input enable_logging
+            then:
+              - service: system_log.write
+                data:
+                  message: "Mail inserted into mailbox"
+                  level: info
+                  logger: blueprints.mailbox_monitor
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input mailbox_status_helper
+      
+      # When mailbox is emptied
+      - conditions:
+          - condition: trigger
+            id: mailbox_emptied
+        sequence:
+          - if:
+              - condition: template
+                value_template: !input enable_logging
+            then:
+              - service: system_log.write
+                data:
+                  message: "Mailbox emptied"
+                  level: info
+                  logger: blueprints.mailbox_monitor
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input mailbox_status_helper
+      
+      # When status changes to "has mail"
+      - conditions:
+          - condition: trigger
+            id: status_has_mail
+        sequence:
+          - service: !input notification_service
+            data:
+              message: !input notification_message 
