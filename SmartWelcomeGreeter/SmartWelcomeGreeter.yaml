@@ -9,7 +9,6 @@ blueprint:
       selector:
         entity:
           domain: binary_sensor
-          device_class: motion
     
     slave_motion_sensor:
       name: "Secondary Motion Sensor (Optional)"
@@ -18,13 +17,12 @@ blueprint:
       selector:
         entity:
           domain: binary_sensor
-          device_class: motion
     
     notification_service:
       name: "Notification Service"
       description: "Service to use for announcements (e.g., TTS, media player, or notify service)"
       selector:
-        target:
+        text:
     
     mailbox_sensor:
       name: "Mailbox Sensor (Optional)"
@@ -60,11 +58,10 @@ blueprint:
     
     open_windows_list:
       name: "Open Windows List (Optional)"
-      description: "Sensor containing list of rooms with open windows"
+      description: "Entity containing list of rooms with open windows (sensor, input_text, etc.)"
       default: ""
       selector:
         entity:
-          domain: sensor
     
     greeting_probability:
       name: "Random Greeting Probability"
@@ -107,10 +104,9 @@ blueprint:
     
     daily_counter:
       name: "Daily Counter Helper (counter.smart_greeter_daily_counter)"
-      description: "Counter helper to track daily announcements"
+      description: "Counter helper to track daily announcements (counter, input_number, etc.)"
       selector:
         entity:
-          domain: counter
     
     normal_greetings:
       name: "Normal Greetings"
