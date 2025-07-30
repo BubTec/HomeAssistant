@@ -175,8 +175,14 @@ blueprint:
 
 variables:
   trigger_entity: !input doorbell_trigger
+  timestamp_now: >-
+    {{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}
+  image_filename: >-
+    {{ timestamp_now }}.jpg
   image_file: >-
-    /local/doorbell/{{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}.jpg
+    /local/doorbell/{{ image_filename }}
+  image_path: >-
+    /config/www/doorbell/{{ image_filename }}
   kiosk_tablets: !input kiosk_tablets
   kiosk_url: !input kiosk_dashboard_url
   normal_url: !input kiosk_normal_url
@@ -208,8 +214,7 @@ action:
   - alias: "Take camera snapshot"
     data_template:
       entity_id: !input doorbell_camera
-      filename: >-
-        /config/www/doorbell/{{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}.jpg
+      filename: "{{ image_path }}"
     action: camera.snapshot
   
   - alias: "Send notification with actions"
