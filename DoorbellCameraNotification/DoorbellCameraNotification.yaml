@@ -214,21 +214,19 @@ trigger:
 condition: []
 
 action:
-  - alias: "Generate timestamp and setup variables"
+  - alias: "Set up variables for the actions"
     variables:
-      current_time: "{{ now() }}"
-      timestamp_file: "{{ as_timestamp(current_time) | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}"
-      timestamp_display: "{{ as_timestamp(current_time) | timestamp_custom('%d.%m.%Y %H:%M', true) }}"
       action_open_door: "{{ 'OPEN_DOOR_' ~ context.id }}"
-      snapshot_filename: "/config/www/doorbell/{{ timestamp_file }}.jpg"
-      image_url: "/local/doorbell/{{ timestamp_file }}.jpg"
+      current_time: "{{ now() }}"
+      timestamp_string: "{{ as_timestamp(current_time) | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}"
+      image_file: "/local/doorbell/{{ timestamp_string }}.jpg"
+      timestamp_display: "{{ as_timestamp(current_time) | timestamp_custom('%d.%m.%Y %H:%M', true) }}"
       notification_id: "doorbell_{{ as_timestamp(current_time) | timestamp_custom('%Y%m%d_%H%M%S') }}"
-      camera_entity: !input doorbell_camera
   
-  - alias: "Take camera snapshot with fixed filename"
+  - alias: "Take camera snapshot"
     data_template:
       entity_id: !input doorbell_camera
-      filename: "{{ snapshot_filename }}"
+      filename: "/config/www/doorbell/{{ timestamp_string }}.jpg"
     action: camera.snapshot
   
   - alias: "Wait for snapshot to be saved"
@@ -271,7 +269,7 @@ action:
         channel: !input notification_channel
         ttl: 0
         priority: high
-        image: "{{ image_url }}"
+        image: "{{ image_file }}"
         clickAction: "{{ dashboard_url }}"
         actions:
           - action: "{{ action_open_door }}"
@@ -288,9 +286,9 @@ action:
           message: >-
             {{ persistent_message.replace('{{timestamp}}', timestamp_display) }}
             
-            ![Doorbell Camera]({{ image_url }})
+            ![Doorbell Camera]({{ image_file }})
             
-            📸 [View Camera Snapshot]({{ image_url }})
+            📸 [View Camera Snapshot]({{ image_file }})
             🏠 [Open Dashboard]({{ dashboard_url }})
           notification_id: "{{ notification_id }}"
   
