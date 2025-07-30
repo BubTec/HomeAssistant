@@ -86,6 +86,19 @@ The blueprint saves snapshots to `/config/www/doorbell/`. Make sure this directo
 mkdir -p /config/www/doorbell
 ```
 
+**Important**: Set proper permissions for the directory:
+```bash
+chmod 755 /config/www/doorbell
+```
+
+**Verify the setup**:
+1. Check if directory exists: `ls -la /config/www/`
+2. Test camera snapshot manually in Developer Tools:
+   - Go to **Developer Tools** > **Services**
+   - Call `camera.snapshot` with your camera entity
+   - Use filename: `/config/www/doorbell/test.jpg`
+   - Check if file appears: `ls -la /config/www/doorbell/`
+
 ## Notification Sounds
 
 Notification sounds work differently on iOS and Android:
@@ -357,12 +370,22 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Verify auto-dismiss time is greater than 0
   - Check if automation completed successfully (no errors in logs)
   - Manual dismissal works regardless of auto-dismiss setting
-- **Camera snapshot link not working**: 
-  - Ensure camera snapshot was saved successfully to `/config/www/doorbell/`
-  - Check file permissions on the www directory
-  - Verify the camera entity is working and accessible
+- **Camera snapshot link shows white page (no image)**: 
+  - **Directory missing**: Ensure `/config/www/doorbell/` directory exists: `mkdir -p /config/www/doorbell`
+  - **Permissions**: Set correct permissions: `chmod 755 /config/www/doorbell`
+  - **Camera entity**: Test your camera entity in Developer Tools:
+    - Go to **Developer Tools** > **Services**
+    - Service: `camera.snapshot`
+    - Entity: Your camera entity (e.g., `camera.front_door`)
+    - Filename: `/config/www/doorbell/test.jpg`
+    - Check if file is created: `ls -la /config/www/doorbell/`
+  - **File timing**: The blueprint now includes a 500ms delay to ensure file is written
+  - **Manual test**: Try accessing: `http://your-ha-instance/local/doorbell/test.jpg` after manual snapshot
+  - **Check logs**: Look for camera.snapshot errors in Home Assistant logs
+- **Camera snapshot link not working at all**: 
+  - Verify the camera entity is working and accessible in Home Assistant
   - Test the image URL manually: `http://your-ha-instance/local/doorbell/filename.jpg`
-  - The snapshot link should open the image in a new tab/window when clicked
+  - Check that Home Assistant's web server can serve files from `/config/www/`
 - **Custom message not working**: 
   - Check that `{{timestamp}}` placeholder is used correctly in the message
   - Verify the message input field accepts the custom text

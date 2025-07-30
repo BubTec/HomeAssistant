@@ -217,6 +217,10 @@ action:
       filename: "{{ image_path }}"
     action: camera.snapshot
   
+  - alias: "Wait for snapshot to be saved"
+    delay:
+      milliseconds: 500
+  
   - alias: "Send notification with actions"
     action: !input notification_target
     data:
