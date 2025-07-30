@@ -135,6 +135,33 @@ blueprint:
       selector:
         boolean:
 
+    enable_persistent_notification:
+      name: Enable Persistent Notification
+      description: Show persistent notification in Home Assistant sidebar for all users
+      default: true
+      selector:
+        boolean:
+
+    persistent_notification_title:
+      name: Persistent Notification Title
+      description: Title for the persistent notification in the sidebar
+      default: "🔔 Doorbell Alert"
+      selector:
+        text:
+          type: text
+
+    persistent_notification_auto_dismiss:
+      name: Auto-dismiss Persistent Notification
+      description: Automatically dismiss the persistent notification after specified time (0 = manual dismiss only)
+      default: 300
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+          mode: slider
+          step: 30
+
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/DoorbellCameraNotification/DoorbellCameraNotification.yaml
 
 variables:
@@ -146,6 +173,11 @@ variables:
   normal_url: !input kiosk_normal_url
   kiosk_timeout: !input kiosk_return_timeout
   wake_screens: !input kiosk_wake_screen
+  enable_persistent: !input enable_persistent_notification
+  persistent_title: !input persistent_notification_title
+  persistent_dismiss_time: !input persistent_notification_auto_dismiss
+  notification_id: >-
+    doorbell_{{ as_timestamp(now()) | timestamp_custom("%Y%m%d_%H%M%S") }}
 
 trigger:
   - entity_id: !input doorbell_trigger
@@ -183,6 +215,21 @@ action:
         actions:
           - action: "{{ action_open_door }}"
             title: !input door_button_title
+  
+  - alias: "Create persistent notification"
+    if:
+      - condition: template
+        value_template: "{{ enable_persistent }}"
+    then:
+      - action: persistent_notification.create
+        data:
+          title: "{{ persistent_title }}"
+          message: >-
+            Someone rang the doorbell at {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+            
+            📸 [View Camera Snapshot]({{ image_file }})
+            🏠 [Open Dashboard]({{ !input dashboard_view }})
+          notification_id: "{{ notification_id }}"
   
   - alias: "Wake and redirect Fully Kiosk tablets"
     if:
@@ -242,5 +289,16 @@ action:
               data:
                 device_id: "{{ device_id(repeat.item) }}"
                 url: "{{ normal_url }}"
+
+  - alias: "Auto-dismiss persistent notification"
+    if:
+      - condition: template
+        value_template: "{{ enable_persistent and persistent_dismiss_time > 0 }}"
+    then:
+      - delay:
+          seconds: "{{ persistent_dismiss_time }}"
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: "{{ notification_id }}"
 
 mode: single 

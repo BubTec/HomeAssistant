@@ -6,6 +6,7 @@ A Home Assistant blueprint that sends actionable notifications with camera snaps
 
 - 📸 **Camera Snapshot**: Automatically takes a photo when the doorbell is triggered
 - 📱 **Mobile Notifications**: Sends notifications to your mobile devices with the camera snapshot
+- 🔔 **Persistent Notifications**: Shows alerts in Home Assistant sidebar for all users with auto-dismiss option
 - 🚪 **Door Opener**: Includes an action button to remotely open the door
 - 🎛️ **Dashboard Integration**: Clicking the notification opens your specified dashboard view
 - 🔊 **Custom Sounds**: Configurable notification sounds for iOS and Android devices
@@ -48,6 +49,9 @@ When creating an automation from this blueprint, configure:
 - **Normal Start URL**: Standard URL to return to after timeout
 - **Kiosk Return Timeout**: Time before tablets return to normal URL (0 = no auto-return)
 - **Wake Tablet Screens**: Whether to wake up sleeping tablets
+- **Enable Persistent Notification**: Show notification in Home Assistant sidebar for all users
+- **Persistent Notification Title**: Custom title for the sidebar notification
+- **Auto-dismiss Persistent Notification**: Time after which to automatically remove the notification (0 = manual dismiss only)
 
 ### 3. Create Notification Groups (Optional)
 
@@ -220,11 +224,45 @@ kiosk_return_timeout: 0  # No automatic return
 kiosk_wake_screen: true
 ```
 
+### Persistent Notification Configuration Examples
+
+**Always Show with Auto-Dismiss**
+```yaml
+enable_persistent_notification: true
+persistent_notification_title: "🔔 Doorbell Alert"
+persistent_notification_auto_dismiss: 300  # Auto-dismiss after 5 minutes
+```
+
+**Manual Dismiss Only**
+```yaml
+enable_persistent_notification: true
+persistent_notification_title: "🚨 Front Door Visitor"
+persistent_notification_auto_dismiss: 0  # No auto-dismiss, manual only
+```
+
+**Different Titles for Different Doors**
+```yaml
+# Front Door Blueprint
+persistent_notification_title: "🔔 Front Door Visitor"
+
+# Back Door Blueprint  
+persistent_notification_title: "🔔 Back Door Activity"
+
+# Emergency Entry Blueprint
+persistent_notification_title: "🚨 Security Alert - Unauthorized Entry"
+```
+
+**Disabled Persistent Notifications**
+```yaml
+enable_persistent_notification: false
+```
+
 ## Usage
 
 1. When someone triggers the doorbell entity, the automation:
    - Takes a snapshot from the configured camera
    - Sends a notification with the photo to your mobile device(s)
+   - **Creates a persistent notification** in the Home Assistant sidebar (if enabled)
    - Shows an "Open Door" button in the notification
    - **Optionally redirects Fully Kiosk tablets** to the doorbell dashboard
 
@@ -232,7 +270,13 @@ kiosk_wake_screen: true
    - **Clicking the notification** opens your specified dashboard view
    - **Clicking the "Open Door" button** executes your configured door opener action
 
-3. **Tablet Display Control:**
+3. **Persistent Notifications:**
+   - **Visible to all users** in the Home Assistant sidebar
+   - **Includes camera snapshot link** and dashboard link in the message
+   - **Auto-dismisses** after the configured time (if enabled)
+   - **Manual dismissal** by clicking the X button in the sidebar
+
+4. **Tablet Display Control:**
    - Wakes up sleeping tablets (if enabled)
    - Redirects to the doorbell dashboard immediately
    - Automatically returns to original view after timeout (if configured)
@@ -280,6 +324,18 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Verify Fully Kiosk Browser integration is properly installed
   - Check that tablets are discovered and showing as `media_player` entities
   - Restart Home Assistant after installing the integration
+- **Persistent notification not showing**: 
+  - Check "Enable Persistent Notification" is set to true
+  - Verify notification appears in Home Assistant sidebar (bell icon)
+  - Check Home Assistant logs for any errors in `persistent_notification.create` service
+- **Persistent notification not auto-dismissing**: 
+  - Verify auto-dismiss time is greater than 0
+  - Check if automation completed successfully (no errors in logs)
+  - Manual dismissal works regardless of auto-dismiss setting
+- **Links in persistent notification not working**: 
+  - Ensure camera snapshot was saved successfully
+  - Check dashboard view path is correct and accessible
+  - Links use Home Assistant's internal URL structure
 
 ## Based On
 
