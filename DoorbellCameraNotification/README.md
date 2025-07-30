@@ -243,6 +243,14 @@ persistent_notification_message: "🔔 DOORBELL: Visitor detected at front door 
 persistent_notification_auto_dismiss: 0  # No auto-dismiss, manual only
 ```
 
+**Completely Custom Title and Message**
+```yaml
+enable_persistent_notification: true
+persistent_notification_title: "Windfang Klingel"  # Your custom title
+persistent_notification_message: "Someone rang the doorbell at {{timestamp}}."  # Your custom message
+persistent_notification_auto_dismiss: 300
+```
+
 **Different Messages for Different Doors**
 ```yaml
 # Front Door Blueprint
@@ -286,8 +294,10 @@ enable_persistent_notification: false
 
 3. **Persistent Notifications:**
    - **Visible to all users** in the Home Assistant sidebar
-   - **Shows camera snapshot directly** in the notification (embedded image)
-   - **Custom message content** with timestamp placeholder support
+   - **Shows camera snapshot directly** in the notification (HTML embedded image)
+   - **Fully customizable title and message** content
+   - **Timestamp placeholder** support in messages ({{timestamp}})
+   - **Responsive image sizing** with rounded corners for better appearance
    - **Includes dashboard link** for easy access
    - **Auto-dismisses** after the configured time (if enabled)
    - **Manual dismissal** by clicking the X button in the sidebar
@@ -353,6 +363,8 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Check file permissions on the www directory
   - Verify the camera entity is working and accessible
   - Test the image URL manually: `http://your-ha-instance/local/doorbell/filename.jpg`
+  - The image is now embedded using HTML `<img>` tags for better compatibility
+  - Check browser console for any image loading errors
 - **Custom message not working**: 
   - Check that `{{timestamp}}` placeholder is used correctly in the message
   - Verify the message input field accepts the custom text
