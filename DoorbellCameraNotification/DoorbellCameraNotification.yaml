@@ -288,7 +288,7 @@ action:
             
             ![Doorbell Camera]({{ image_file }})
             
-            📸 [View Full Size]({{ image_file }})
+            📸 **Direct Link:** {{ image_file }}
             🏠 [Open Dashboard]({{ dashboard_url }})
           notification_id: "{{ notification_id }}"
   
