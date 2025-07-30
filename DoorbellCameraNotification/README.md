@@ -53,6 +53,8 @@ When creating an automation from this blueprint, configure:
 - **Persistent Notification Title**: Custom title for the sidebar notification
 - **Persistent Notification Message**: Custom message content (use {{timestamp}} as placeholder for time)
 - **Auto-dismiss Persistent Notification**: Time after which to automatically remove the notification (0 = manual dismiss only)
+- **Enable Debug Notifications**: Show debugging info if camera snapshots fail or are empty
+- **Maximum Snapshots to Keep**: Number of snapshot files to keep (reminder for manual cleanup)
 
 ### 3. Create Notification Groups (Optional)
 
@@ -98,6 +100,34 @@ chmod 755 /config/www/doorbell
    - Call `camera.snapshot` with your camera entity
    - Use filename: `/config/www/doorbell/test.jpg`
    - Check if file appears: `ls -la /config/www/doorbell/`
+
+### 6. Cleanup Old Snapshots (Optional)
+
+The blueprint includes a setting for "Maximum Snapshots to Keep" but doesn't automatically delete old files. You can set up automatic cleanup:
+
+**Option 1: Manual cleanup command**
+```bash
+# Keep only the 10 newest files
+cd /config/www/doorbell
+ls -t *.jpg | tail -n +11 | xargs rm -f
+```
+
+**Option 2: Create an automation for cleanup**
+```yaml
+automation:
+  - alias: "Cleanup Old Doorbell Snapshots"
+    trigger:
+      - platform: time
+        at: "03:00:00"  # Daily at 3 AM
+    action:
+      - action: shell_command.cleanup_doorbell
+        
+shell_command:
+  cleanup_doorbell: 'cd /config/www/doorbell && ls -t *.jpg | tail -n +11 | xargs rm -f'
+```
+
+**Option 3: File Editor add-on**
+Use the File Editor add-on to manually delete old files when needed.
 
 ## Notification Sounds
 
@@ -292,6 +322,28 @@ persistent_notification_auto_dismiss: 180  # Auto-dismiss after 3 minutes
 enable_persistent_notification: false
 ```
 
+### Debug and Maintenance Configuration Examples
+
+**Debug Mode Enabled (Recommended for Setup)**
+```yaml
+enable_debug_notifications: true
+enable_persistent_notification: true
+max_snapshots_keep: 5  # Keep fewer files during testing
+```
+
+**Production Mode (Debug Disabled)**
+```yaml
+enable_debug_notifications: false
+enable_persistent_notification: true  
+max_snapshots_keep: 10  # Standard cleanup reminder
+```
+
+**No Maintenance Reminders**
+```yaml
+enable_debug_notifications: false
+max_snapshots_keep: 0  # No cleanup reminders
+```
+
 ## Usage
 
 1. When someone triggers the doorbell entity, the automation:
@@ -319,6 +371,12 @@ enable_persistent_notification: false
    - Redirects to the doorbell dashboard immediately
    - Automatically returns to original view after timeout (if configured)
    - Multiple tablets can show different dashboard views
+
+5. **Debug and Maintenance (if enabled):**
+   - **Debug notification** appears with camera status and troubleshooting info
+   - **File info** shows exact snapshot path and camera entity
+   - **Cleanup reminder** based on max snapshots setting
+   - **Camera state check** helps identify connectivity issues
 
 ## Snapshots
 
@@ -371,6 +429,8 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Check if automation completed successfully (no errors in logs)
   - Manual dismissal works regardless of auto-dismiss setting
 - **Camera snapshot link shows white page (no image)**: 
+  - **Enable Debug Notifications**: Set "Enable Debug Notifications" to true in blueprint config
+  - **Check Debug Info**: Look for "🐛 Doorbell Debug Info" notification in sidebar with camera state
   - **Directory missing**: Ensure `/config/www/doorbell/` directory exists: `mkdir -p /config/www/doorbell`
   - **Permissions**: Set correct permissions: `chmod 755 /config/www/doorbell`
   - **Camera entity**: Test your camera entity in Developer Tools:
@@ -379,9 +439,11 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
     - Entity: Your camera entity (e.g., `camera.front_door`)
     - Filename: `/config/www/doorbell/test.jpg`
     - Check if file is created: `ls -la /config/www/doorbell/`
-  - **File timing**: The blueprint now includes a 500ms delay to ensure file is written
+    - Check file size: `ls -lah /config/www/doorbell/test.jpg` (should be > 1KB)
+  - **File timing**: The blueprint includes a 1 second delay to ensure file is written
   - **Manual test**: Try accessing: `http://your-ha-instance/local/doorbell/test.jpg` after manual snapshot
   - **Check logs**: Look for camera.snapshot errors in Home Assistant logs
+  - **Camera state**: Ensure camera state is not 'unavailable', 'unknown', or 'offline'
 - **Camera snapshot link not working at all**: 
   - Verify the camera entity is working and accessible in Home Assistant
   - Test the image URL manually: `http://your-ha-instance/local/doorbell/filename.jpg`

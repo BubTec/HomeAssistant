@@ -171,6 +171,23 @@ blueprint:
           type: text
           multiline: true
 
+    enable_debug_notifications:
+      name: Enable Debug Notifications
+      description: Show debug info if camera snapshot fails or is empty
+      default: true
+      selector:
+        boolean:
+
+    max_snapshots_keep:
+      name: Maximum Snapshots to Keep
+      description: Maximum number of snapshot files to keep (older files will be deleted, 0 = no cleanup)
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/DoorbellCameraNotification/DoorbellCameraNotification.yaml
 
 variables:
@@ -185,6 +202,8 @@ variables:
   persistent_dismiss_time: !input persistent_notification_auto_dismiss
   persistent_message: !input persistent_notification_message
   dashboard_url: !input dashboard_view
+  enable_debug: !input enable_debug_notifications
+  max_snapshots: !input max_snapshots_keep
 
 trigger:
   - entity_id: !input doorbell_trigger
@@ -215,6 +234,30 @@ action:
   - alias: "Wait for snapshot to be saved"
     delay:
       seconds: 1
+  
+  - alias: "Create debug notification with camera info"
+    if:
+      - condition: template
+        value_template: "{{ enable_debug }}"
+    then:
+      - action: persistent_notification.create
+        data:
+          title: "🐛 Doorbell Debug Info"
+          message: >-
+            📸 **Snapshot Created**: {{ timestamp_display }}
+            🗂️ **File**: {{ snapshot_filename }}
+            📷 **Camera**: !input doorbell_camera
+            📊 **Camera State**: Check in Developer Tools > States
+            
+            **If snapshot is empty, check:**
+            - Camera entity is available (not 'unavailable' or 'unknown')
+            - Camera has network connectivity
+            - Camera authentication is working
+            - File permissions: /config/www/doorbell/ is writable
+            
+            **Manual cleanup**: Keep only {{ max_snapshots }} newest files in /config/www/doorbell/
+          notification_id: "doorbell_debug_{{ as_timestamp(current_time) | timestamp_custom('%Y%m%d_%H%M%S') }}"
+        continue_on_error: true
   
   - alias: "Send notification with actions"
     action: !input notification_target
