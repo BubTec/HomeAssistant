@@ -6,18 +6,25 @@ class DiyHueRoomAssigner(hass.Hass):
     """Assigns each light entity a diyhue_room attribute based on its area."""
 
     def initialize(self):
-        # Collect all light entities only
+        # Collect all light entities and their state
         lights = self.get_state("light") or {}
 
-        # Build customize mapping using area names looked up via entity_id
+        # Build customize mapping by resolving the area_id attribute of each
+        # light to an area name. ``self.area_name`` expects an ``area_id`` and
+        # returns the matching name.
         customize = {}
-        for entity_id in lights:
-            area = self.area_name(entity_id)
-            if area:
-                customize[entity_id] = {"diyhue_room": area}
+        for entity_id, state in lights.items():
+            aid = state.get("attributes", {}).get("area_id")
+            if aid:
+                area = self.area_name(aid)
+                if area:
+                    customize[entity_id] = {"diyhue_room": area}
 
         # Determine path to Home Assistant customize.yaml
-        out_path = Path(self.config_dir).parent / "customize.yaml"
+        # Use the config directory directly rather than its parent so the
+        # output ends up in the same folder where Home Assistant expects it
+        # (typically ``/config``).
+        out_path = Path(self.config_dir) / "customize.yaml"
 
         try:
             with open(out_path, "w", encoding="utf-8") as f:
