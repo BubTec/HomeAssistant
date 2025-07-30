@@ -240,8 +240,7 @@ action:
           message: >-
             {{ persistent_message.replace('{{timestamp}}', timestamp_formatted) }}
             
-            <img src="{{ image_file }}" width="100%" style="max-width: 400px; border-radius: 8px; margin: 10px 0;">
-            
+            📸 [View Camera Snapshot]({{ image_file }})
             🏠 [Open Dashboard]({{ dashboard_url }})
           notification_id: "{{ notification_id }}"
   

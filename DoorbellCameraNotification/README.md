@@ -294,10 +294,9 @@ enable_persistent_notification: false
 
 3. **Persistent Notifications:**
    - **Visible to all users** in the Home Assistant sidebar
-   - **Shows camera snapshot directly** in the notification (HTML embedded image)
+   - **Clickable camera snapshot link** to view the image
    - **Fully customizable title and message** content
    - **Timestamp placeholder** support in messages ({{timestamp}})
-   - **Responsive image sizing** with rounded corners for better appearance
    - **Includes dashboard link** for easy access
    - **Auto-dismisses** after the configured time (if enabled)
    - **Manual dismissal** by clicking the X button in the sidebar
@@ -358,13 +357,12 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Verify auto-dismiss time is greater than 0
   - Check if automation completed successfully (no errors in logs)
   - Manual dismissal works regardless of auto-dismiss setting
-- **Persistent notification image not showing**: 
+- **Camera snapshot link not working**: 
   - Ensure camera snapshot was saved successfully to `/config/www/doorbell/`
   - Check file permissions on the www directory
   - Verify the camera entity is working and accessible
   - Test the image URL manually: `http://your-ha-instance/local/doorbell/filename.jpg`
-  - The image is now embedded using HTML `<img>` tags for better compatibility
-  - Check browser console for any image loading errors
+  - The snapshot link should open the image in a new tab/window when clicked
 - **Custom message not working**: 
   - Check that `{{timestamp}}` placeholder is used correctly in the message
   - Verify the message input field accepts the custom text
