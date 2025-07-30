@@ -219,7 +219,7 @@ action:
   
   - alias: "Wait for snapshot to be saved"
     delay:
-      milliseconds: 500
+      seconds: 2
   
   - alias: "Send notification with actions"
     action: !input notification_target
