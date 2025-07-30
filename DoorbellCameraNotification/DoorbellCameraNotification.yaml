@@ -223,13 +223,13 @@ action:
       snapshot_filename: "/config/www/doorbell/{{ timestamp_file }}.jpg"
       image_url: "/local/doorbell/{{ timestamp_file }}.jpg"
       notification_id: "doorbell_{{ as_timestamp(current_time) | timestamp_custom('%Y%m%d_%H%M%S') }}"
+      camera_entity: !input doorbell_camera
   
   - alias: "Take camera snapshot with fixed filename"
-    action: camera.snapshot
-    target:
+    data_template:
       entity_id: !input doorbell_camera
-    data:
       filename: "{{ snapshot_filename }}"
+    action: camera.snapshot
   
   - alias: "Wait for snapshot to be saved"
     delay:
@@ -246,8 +246,9 @@ action:
           message: >-
             📸 **Snapshot Created**: {{ timestamp_display }}
             🗂️ **File**: {{ snapshot_filename }}
-            📷 **Camera**: !input doorbell_camera
-            📊 **Camera State**: Check in Developer Tools > States
+            📷 **Camera**: {{ camera_entity }}
+            📊 **Camera State**: {{ states(camera_entity) }}
+            🔍 **Camera Available**: {{ states(camera_entity) not in ['unavailable', 'unknown', 'none'] }}
             
             **If snapshot is empty, check:**
             - Camera entity is available (not 'unavailable' or 'unknown')
