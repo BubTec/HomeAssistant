@@ -288,9 +288,8 @@ action:
           message: >-
             {{ persistent_message.replace('{{timestamp}}', timestamp_display) }}
             
-            ![Doorbell Camera]({{ image_url }})
-            
-            📸 [View Full Size]({{ image_url }}) | 🏠 [Open Dashboard]({{ dashboard_url }})
+            📸 [View Camera Snapshot]({{ image_url }})
+            🏠 [Open Dashboard]({{ dashboard_url }})
           notification_id: "{{ notification_id }}"
   
   - alias: "Wake and redirect Fully Kiosk tablets"
