@@ -38,7 +38,7 @@ When creating an automation from this blueprint, configure:
 - **Doorbell Camera**: The camera to take snapshots from (e.g., `camera.front_door`)
 - **Notification Target**: Where to send notifications (e.g., `notify.mobile_app_iphone` or `notify.all_mobile`)
 - **Notification Title**: Custom title for the notification
-- **Dashboard View**: Path to open when notification is clicked (e.g., `https://your.hass.io/dashboard-home/entrance`)
+- **Dashboard View**: Path to open when notification is clicked (e.g., `/dashboard-home/entrance`)
 - **Door Opener Action**: Action to perform when "Open Door" is pressed
 - **Door Button Title**: Text for the door opener button
 - **Notification Sound (iOS)**: iOS notification sound file
@@ -51,6 +51,7 @@ When creating an automation from this blueprint, configure:
 - **Wake Tablet Screens**: Whether to wake up sleeping tablets
 - **Enable Persistent Notification**: Show notification in Home Assistant sidebar for all users
 - **Persistent Notification Title**: Custom title for the sidebar notification
+- **Persistent Notification Message**: Custom message content (use {{timestamp}} as placeholder for time)
 - **Auto-dismiss Persistent Notification**: Time after which to automatically remove the notification (0 = manual dismiss only)
 
 ### 3. Create Notification Groups (Optional)
@@ -230,26 +231,39 @@ kiosk_wake_screen: true
 ```yaml
 enable_persistent_notification: true
 persistent_notification_title: "🔔 Doorbell Alert"
+persistent_notification_message: "Someone rang the doorbell at {{timestamp}}."
 persistent_notification_auto_dismiss: 300  # Auto-dismiss after 5 minutes
 ```
 
-**Manual Dismiss Only**
+**Custom Message with Details**
 ```yaml
 enable_persistent_notification: true
 persistent_notification_title: "🚨 Front Door Visitor"
+persistent_notification_message: "🔔 DOORBELL: Visitor detected at front door ({{timestamp}}). Please check camera and respond if needed."
 persistent_notification_auto_dismiss: 0  # No auto-dismiss, manual only
 ```
 
-**Different Titles for Different Doors**
+**Different Messages for Different Doors**
 ```yaml
 # Front Door Blueprint
-persistent_notification_title: "🔔 Front Door Visitor"
+persistent_notification_title: "🔔 Front Door"
+persistent_notification_message: "Someone is at the front door ({{timestamp}}). Camera snapshot available below."
 
 # Back Door Blueprint  
-persistent_notification_title: "🔔 Back Door Activity"
+persistent_notification_title: "🔔 Back Door"
+persistent_notification_message: "Back door activity detected at {{timestamp}}. Check who is there."
 
 # Emergency Entry Blueprint
-persistent_notification_title: "🚨 Security Alert - Unauthorized Entry"
+persistent_notification_title: "🚨 Security Alert"
+persistent_notification_message: "⚠️ SECURITY: Unauthorized entry attempt detected at {{timestamp}}! Immediate attention required."
+```
+
+**Simple Short Message**
+```yaml
+enable_persistent_notification: true
+persistent_notification_title: "🔔 Doorbell"
+persistent_notification_message: "Visitor at {{timestamp}}"
+persistent_notification_auto_dismiss: 180  # Auto-dismiss after 3 minutes
 ```
 
 **Disabled Persistent Notifications**
@@ -272,7 +286,9 @@ enable_persistent_notification: false
 
 3. **Persistent Notifications:**
    - **Visible to all users** in the Home Assistant sidebar
-   - **Includes camera snapshot link** and dashboard link in the message
+   - **Shows camera snapshot directly** in the notification (embedded image)
+   - **Custom message content** with timestamp placeholder support
+   - **Includes dashboard link** for easy access
    - **Auto-dismisses** after the configured time (if enabled)
    - **Manual dismissal** by clicking the X button in the sidebar
 
@@ -332,6 +348,15 @@ Camera snapshots are automatically saved to `/config/www/doorbell/` with timesta
   - Verify auto-dismiss time is greater than 0
   - Check if automation completed successfully (no errors in logs)
   - Manual dismissal works regardless of auto-dismiss setting
+- **Persistent notification image not showing**: 
+  - Ensure camera snapshot was saved successfully to `/config/www/doorbell/`
+  - Check file permissions on the www directory
+  - Verify the camera entity is working and accessible
+  - Test the image URL manually: `http://your-ha-instance/local/doorbell/filename.jpg`
+- **Custom message not working**: 
+  - Check that `{{timestamp}}` placeholder is used correctly in the message
+  - Verify the message input field accepts the custom text
+  - Template syntax errors will prevent the automation from running
 - **Links in persistent notification not working**: 
   - Ensure camera snapshot was saved successfully
   - Check dashboard view path is correct and accessible

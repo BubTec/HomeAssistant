@@ -40,7 +40,7 @@ blueprint:
     dashboard_view:
       name: Dashboard View
       description: Dashboard path to open when notification is clicked
-      default: "https://your.hass.io"
+      default: "/dashboard-home/eingang"
       selector:
         text:
           type: text
@@ -162,6 +162,15 @@ blueprint:
           mode: slider
           step: 30
 
+    persistent_notification_message:
+      name: Persistent Notification Message
+      description: Custom message for the persistent notification (use {{timestamp}} for the time)
+      default: "Someone rang the doorbell at {{timestamp}}."
+      selector:
+        text:
+          type: text
+          multiline: true
+
   source_url: https://github.com/your-repo/HomeAssistant/blob/main/DoorbellCameraNotification/DoorbellCameraNotification.yaml
 
 variables:
@@ -176,9 +185,12 @@ variables:
   enable_persistent: !input enable_persistent_notification
   persistent_title: !input persistent_notification_title
   persistent_dismiss_time: !input persistent_notification_auto_dismiss
+  persistent_message: !input persistent_notification_message
   dashboard_url: !input dashboard_view
   notification_id: >-
     doorbell_{{ as_timestamp(now()) | timestamp_custom("%Y%m%d_%H%M%S") }}
+  timestamp_formatted: >-
+    {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}
 
 trigger:
   - entity_id: !input doorbell_trigger
@@ -226,9 +238,10 @@ action:
         data:
           title: "{{ persistent_title }}"
           message: >-
-            Someone rang the doorbell at {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
+            {{ persistent_message.replace('{{timestamp}}', timestamp_formatted) }}
             
-            📸 [View Camera Snapshot]({{ image_file }})
+            ![Camera Snapshot]({{ image_file }})
+            
             🏠 [Open Dashboard]({{ dashboard_url }})
           notification_id: "{{ notification_id }}"
   
