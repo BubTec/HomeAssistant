@@ -41,7 +41,8 @@ class DiyHueRoomAssigner(hass.Hass):
                     sort_keys=False,
                 )
             self.log(
-                f"Generated customize.yaml with {len(customize)} entries at {out_path}"
+                "Generated customize.yaml with %d entries at %s"
+                % (len(customize), out_path)
             )
         except Exception as err:
             self.error(f"Error writing customize.yaml: {err}")
