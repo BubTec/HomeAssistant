@@ -38,7 +38,7 @@ When creating an automation from this blueprint, configure:
 - **Doorbell Camera**: The camera to take snapshots from (e.g., `camera.front_door`)
 - **Notification Target**: Where to send notifications (e.g., `notify.mobile_app_iphone` or `notify.all_mobile`)
 - **Notification Title**: Custom title for the notification
-- **Dashboard View**: Path to open when notification is clicked (e.g., `/dashboard-home/entrance`)
+- **Dashboard View**: Path to open when notification is clicked (e.g., `https://your.hass.io/dashboard-home/entrance`)
 - **Door Opener Action**: Action to perform when "Open Door" is pressed
 - **Door Button Title**: Text for the door opener button
 - **Notification Sound (iOS)**: iOS notification sound file
@@ -191,8 +191,8 @@ After creating these automations, configure different sounds for each channel in
 kiosk_tablets:
   - media_player.buro_tablet
   - media_player.kuche_tablet
-kiosk_dashboard_url: "/dashboard-home/entrance"
-kiosk_normal_url: "/dashboard-home"
+kiosk_dashboard_url: "https://your.hass.io/dashboard-home/entrance"
+kiosk_normal_url: "https://your.hass.io/dashboard-home"
 kiosk_return_timeout: 30
 kiosk_wake_screen: true
 ```
@@ -202,15 +202,15 @@ kiosk_wake_screen: true
 # Entrance Door Blueprint
 kiosk_tablets: 
   - media_player.buro_tablet
-kiosk_dashboard_url: "/dashboard-security/entrance-full"
-kiosk_normal_url: "/dashboard-home"
+kiosk_dashboard_url: "https://your.hass.io/dashboard-security/entrance-full"
+kiosk_normal_url: "https://your.hass.io/dashboard-home"
 kiosk_return_timeout: 45
 
 # Back Door Blueprint
 kiosk_tablets:
   - media_player.kuche_tablet
-kiosk_dashboard_url: "/dashboard-home/entrance-compact"
-kiosk_normal_url: "/dashboard-kiosk"
+kiosk_dashboard_url: "https://your.hass.io/dashboard-home/entrance-compact"
+kiosk_normal_url: "https://your.hass.io/dashboard-kiosk"
 kiosk_return_timeout: 20
 ```
 
@@ -218,8 +218,8 @@ kiosk_return_timeout: 20
 ```yaml
 kiosk_tablets:
   - media_player.buro_tablet
-kiosk_dashboard_url: "/dashboard-home/entrance"
-kiosk_normal_url: "/dashboard-home"
+kiosk_dashboard_url: "https://your.hass.io/dashboard-home/entrance"
+kiosk_normal_url: "https://your.hass.io/dashboard-home"
 kiosk_return_timeout: 0  # No automatic return
 kiosk_wake_screen: true
 ```

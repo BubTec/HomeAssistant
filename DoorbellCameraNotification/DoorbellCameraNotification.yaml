@@ -40,7 +40,7 @@ blueprint:
     dashboard_view:
       name: Dashboard View
       description: Dashboard path to open when notification is clicked
-      default: "/dashboard-home/eingang"
+      default: "https://your.hass.io"
       selector:
         text:
           type: text
@@ -102,16 +102,16 @@ blueprint:
     
     kiosk_dashboard_url:
       name: Kiosk Dashboard URL
-      description: Dashboard URL to display on tablets when doorbell rings (e.g., /dashboard-home/entrance)
-      default: "/dashboard-home/entrance"
+      description: Dashboard URL to display on tablets when doorbell rings (e.g., https://your.hass.io/dashboard-home/entrance)
+      default: "https://your.hass.io"
       selector:
         text:
           type: text
     
     kiosk_normal_url:
       name: Normal Start URL
-      description: Normal start URL to return to after timeout (e.g., /dashboard-home)
-      default: "/dashboard-home"
+      description: Normal start URL to return to after timeout (e.g., https://your.hass.io/dashboard-home)
+      default: "https://your.hass.io"
       selector:
         text:
           type: text
@@ -176,6 +176,7 @@ variables:
   enable_persistent: !input enable_persistent_notification
   persistent_title: !input persistent_notification_title
   persistent_dismiss_time: !input persistent_notification_auto_dismiss
+  dashboard_url: !input dashboard_view
   notification_id: >-
     doorbell_{{ as_timestamp(now()) | timestamp_custom("%Y%m%d_%H%M%S") }}
 
@@ -211,7 +212,7 @@ action:
         ttl: 0
         priority: high
         image: "{{ image_file }}"
-        clickAction: !input dashboard_view
+        clickAction: "{{ dashboard_url }}"
         actions:
           - action: "{{ action_open_door }}"
             title: !input door_button_title
@@ -228,7 +229,7 @@ action:
             Someone rang the doorbell at {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}.
             
             📸 [View Camera Snapshot]({{ image_file }})
-            🏠 [Open Dashboard]({{ !input dashboard_view }})
+            🏠 [Open Dashboard]({{ dashboard_url }})
           notification_id: "{{ notification_id }}"
   
   - alias: "Wake and redirect Fully Kiosk tablets"
