@@ -290,7 +290,7 @@ action:
             
             ![Doorbell Camera]({{ image_url }})
             
-            📸 <a href="{{ image_url }}" target="_blank">View Full Size</a> | 🏠 <a href="{{ dashboard_url }}">Open Dashboard</a>
+            📸 [View Full Size]({{ image_url }}) | 🏠 [Open Dashboard]({{ dashboard_url }})
           notification_id: "{{ notification_id }}"
   
   - alias: "Wake and redirect Fully Kiosk tablets"
