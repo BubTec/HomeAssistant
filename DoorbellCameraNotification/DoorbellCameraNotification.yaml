@@ -175,14 +175,6 @@ blueprint:
 
 variables:
   trigger_entity: !input doorbell_trigger
-  timestamp_now: >-
-    {{ as_timestamp(now()) | timestamp_custom("%Y-%m-%d_%H-%M-%S") }}
-  image_filename: >-
-    {{ timestamp_now }}.jpg
-  image_file: >-
-    /local/doorbell/{{ image_filename }}
-  image_path: >-
-    /config/www/doorbell/{{ image_filename }}
   kiosk_tablets: !input kiosk_tablets
   kiosk_url: !input kiosk_dashboard_url
   normal_url: !input kiosk_normal_url
@@ -193,10 +185,6 @@ variables:
   persistent_dismiss_time: !input persistent_notification_auto_dismiss
   persistent_message: !input persistent_notification_message
   dashboard_url: !input dashboard_view
-  notification_id: >-
-    doorbell_{{ as_timestamp(now()) | timestamp_custom("%Y%m%d_%H%M%S") }}
-  timestamp_formatted: >-
-    {{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}
 
 trigger:
   - entity_id: !input doorbell_trigger
@@ -210,11 +198,15 @@ action:
   - alias: "Set up variables for the actions"
     variables:
       action_open_door: "{{ 'OPEN_DOOR_' ~ context.id }}"
+      timestamp_now: "{{ as_timestamp(now()) | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}"
+      image_file: "/local/doorbell/{{ timestamp_now }}.jpg"
+      notification_id: "doorbell_{{ as_timestamp(now()) | timestamp_custom('%Y%m%d_%H%M%S') }}"
+      timestamp_formatted: "{{ as_timestamp(now()) | timestamp_custom('%d.%m.%Y %H:%M', true) }}"
   
   - alias: "Take camera snapshot"
     data_template:
       entity_id: !input doorbell_camera
-      filename: "{{ image_path }}"
+      filename: "/config/www/doorbell/{{ timestamp_now }}.jpg"
     action: camera.snapshot
   
   - alias: "Wait for snapshot to be saved"
