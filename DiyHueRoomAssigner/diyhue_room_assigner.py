@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import yaml
 import appdaemon.plugins.hass.hassapi as hass
 
@@ -6,35 +6,24 @@ class DiyHueRoomAssigner(hass.Hass):
     """Assigns each light entity a diyhue_room attribute based on its area."""
 
     def initialize(self):
-        # Collect all light entities
-        states = self.get_state()
-        lights = {
-            entity_id: data
-            for entity_id, data in states.items()
-            if entity_id.startswith("light.")
-        }
+        # Collect all light entities only
+        lights = self.get_state("light") or {}
 
-        # Get all area IDs
-        area_ids = self.areas()
-
-        # Build mapping of area_id -> area_name
-        areas = {aid: self.area_name(aid) for aid in area_ids}
-
+        # Build customize mapping using area names looked up via entity_id
         customize = {}
-        for entity_id, state in lights.items():
-            aid = state.get("attributes", {}).get("area_id")
-            if aid and aid in areas:
-                customize[entity_id] = {"diyhue_room": areas[aid]}
+        for entity_id in lights:
+            area = self.area_name(entity_id)
+            if area:
+                customize[entity_id] = {"diyhue_room": area}
 
         # Determine path to Home Assistant customize.yaml
-        config_dir = str(self.config_dir)
-        out_path = os.path.join(os.path.dirname(config_dir), "customize.yaml")
+        out_path = Path(self.config_dir).parent / "customize.yaml"
 
         try:
             with open(out_path, "w", encoding="utf-8") as f:
-                yaml.dump(customize, f, allow_unicode=True)
+                yaml.safe_dump(customize, f, allow_unicode=True)
             self.log(
-                f"Erzeugt customize.yaml mit {len(customize)} Einträgen unter {out_path}"
+                f"Generated customize.yaml with {len(customize)} entries at {out_path}"
             )
         except Exception as err:
-            self.error(f"Fehler beim Schreiben von customize.yaml: {err}")
+            self.error(f"Error writing customize.yaml: {err}")
