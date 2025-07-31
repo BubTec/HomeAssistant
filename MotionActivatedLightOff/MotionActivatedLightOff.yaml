@@ -27,13 +27,6 @@ blueprint:
           min: 1
           max: 60
           unit_of_measurement: "minutes"
-    
-    enable_logging:
-      name: "Enable Logging"
-      description: "Enable debug logging for troubleshooting"
-      default: true
-      selector:
-        boolean: {}
 
 trigger:
   - platform: state
@@ -46,14 +39,6 @@ condition:
     state: "on"
 
 action:
-  - if:
-      - condition: template
-        value_template: "{{ !input enable_logging }}"
-    then:
-      - service: persistent_notification.create
-        data:
-          title: "Motion Light Off - Timer Started"
-          message: "Motion stopped, turn off timer started for {{ states('!input light_entity') }} ({{ !input turn_off_delay }} minutes)"
   - delay:
       minutes: !input turn_off_delay
   - condition: state
@@ -64,12 +49,4 @@ action:
     state: "on"
   - service: light.turn_off
     target:
-      entity_id: !input light_entity
-  - if:
-      - condition: template
-        value_template: "{{ !input enable_logging }}"
-    then:
-      - service: persistent_notification.create
-        data:
-          title: "Motion Light Off - Light Turned Off"
-          message: "Light {{ states('!input light_entity') }} turned off after {{ !input turn_off_delay }} minutes of no motion" 
+      entity_id: !input light_entity 

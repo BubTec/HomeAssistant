@@ -8,10 +8,9 @@ A Home Assistant blueprint that automatically turns off lights after a specified
 
 - **Automatic Light Control**: Turns off lights after configurable delay when no motion is detected
 - **Motion Detection**: Monitors motion sensors to determine when to start/stop the turn-off timer
-- **Timer Cancellation**: Cancels the turn-off timer when motion is detected again
 - **Flexible Configuration**: Configurable delay time and support for individual lights or light groups
-- **Debug Logging**: Optional logging for troubleshooting and monitoring
 - **Smart Logic**: Only operates when lights are already on
+- **Simple & Reliable**: Minimal complexity for maximum reliability
 
 ## Requirements
 
@@ -32,19 +31,16 @@ A Home Assistant blueprint that automatically turns off lights after a specified
 - **Motion Sensor**: Binary sensor that detects movement
 - **Light Entity**: Light or light group to control
 - **Turn Off Delay**: Time in minutes to wait before turning off the light (default: 5 minutes)
-- **Enable Logging**: Optional debug logging for troubleshooting
 
 ## How It Works
 
 1. **Motion Stops**: When motion stops and the light is on:
    - Starts the turn-off timer
-   - Logs the timer start (if logging enabled)
 
 2. **Timer Expires**: After the specified delay:
    - Checks if motion is still not detected
    - Checks if the light is still on
    - Turns off the light
-   - Logs the action (if logging enabled)
 
 **Note**: Each time motion stops, a new timer starts. If motion is detected again, the automation will trigger again when motion stops.
 
@@ -59,7 +55,6 @@ use_blueprint:
     motion_sensor: binary_sensor.kitchen_motion
     light_entity: light.kitchen_lights
     turn_off_delay: 5
-    enable_logging: true
 ```
 
 ### Advanced Setup with Light Group
@@ -71,7 +66,6 @@ use_blueprint:
     motion_sensor: binary_sensor.living_room_motion
     light_entity: light.living_room_group
     turn_off_delay: 10
-    enable_logging: false
 ```
 
 ### Short Delay for Bathroom
@@ -83,7 +77,6 @@ use_blueprint:
     motion_sensor: binary_sensor.bathroom_motion
     light_entity: light.bathroom_light
     turn_off_delay: 2
-    enable_logging: true
 ```
 
 
@@ -101,16 +94,7 @@ use_blueprint:
    - This is normal behavior - each time motion stops, a new timer starts
    - The automation will trigger again when motion stops again
 
-3. **Logging not working**:
-   - Ensure the enable_logging option is set to true
-   - Check Home Assistant logs for notification service errors
 
-### Debug Mode
-
-Enable logging to see detailed information about:
-- Timer start/cancellation events
-- Light turn-off actions
-- Motion detection events
 
 ## Use Cases
 
