@@ -257,6 +257,14 @@ trigger:
     entity_id: !input usage_counter
     id: "usage_counter_change"
   
+  - platform: state
+    entity_id: !input needs_cleaning_helper
+    id: "needs_cleaning_change"
+  
+  - platform: state
+    entity_id: !input cleaning_tool_alert
+    id: "tool_alert_change"
+  
   - platform: time
     at: "00:00:00"
     id: "periodic_check"
@@ -393,24 +401,6 @@ action:
                       - service: !input notification_service
                         data:
                           message: "{{ cleaning_completed_message }}"
-                      # Update persistent notification
-                      - if:
-                          - condition: template
-                            value_template: "{{ enable_persistent }}"
-                        then:
-                          - service: persistent_notification.create
-                            data:
-                              title: "{{ persistent_title }}"
-                              message: >-
-                                ✅ **Cat litter box cleaned!**
-                                
-                                📊 **Statistics:**
-                                • Current usage: 0 (just cleaned)
-                                • Total cleanings: {{ states(clean_counter) | int }}
-                                • Total usage: {{ states(total_counter) | int }}
-                                
-                                🕐 Last cleaned: {{ now().strftime('%d.%m.%Y %H:%M') }}
-                              notification_id: "cat_litter_status"
 
               # Cleaning tool closed - only notify if it was left open for too long
               - conditions:
@@ -443,24 +433,68 @@ action:
                   message: >
                     {% set count = states(usage_counter) | int %}
                     {{ cleaning_reminder_message.replace('{count}', count | string) }}
-              # Update persistent notification
-              - if:
-                  - condition: template
-                    value_template: "{{ enable_persistent }}"
-                then:
-                  - service: persistent_notification.create
-                    data:
-                      title: "{{ persistent_title }}"
-                      message: >-
-                        🚨 **Cat litter box needs cleaning!**
-                        
-                        📊 **Statistics:**
-                        • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
-                        • Total cleanings: {{ states(clean_counter) | int }}
-                        • Total usage: {{ states(total_counter) | int }}
-                        
-                        🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) }}
-                      notification_id: "cat_litter_status"
+
+      # Handle needs cleaning helper changes
+      - conditions:
+          - condition: trigger
+            id: "needs_cleaning_change"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ enable_persistent }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "{{ persistent_title }}"
+                  message: >-
+                    {% if states(needs_cleaning_helper) == 'on' %}
+                    🚨 **Cat litter box needs cleaning!**
+                    {% else %}
+                    ✅ **Cat litter box status OK**
+                    {% endif %}
+                    
+                    📊 **Statistics:**
+                    • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
+                    • Total cleanings: {{ states(clean_counter) | int }}
+                    • Total usage: {{ states(total_counter) | int }}
+                    
+                    🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Never' }}
+                    
+                    {% if states(cleaning_tool_alert) == 'on' %}
+                    ⚠️ **Warning:** Cleaning tool is not properly stored!
+                    {% endif %}
+                  notification_id: "cat_litter_status"
+
+      # Handle tool alert changes
+      - conditions:
+          - condition: trigger
+            id: "tool_alert_change"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ enable_persistent }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "{{ persistent_title }}"
+                  message: >-
+                    {% if states(needs_cleaning_helper) == 'on' %}
+                    🚨 **Cat litter box needs cleaning!**
+                    {% else %}
+                    ✅ **Cat litter box status OK**
+                    {% endif %}
+                    
+                    📊 **Statistics:**
+                    • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
+                    • Total cleanings: {{ states(clean_counter) | int }}
+                    • Total usage: {{ states(total_counter) | int }}
+                    
+                    🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Never' }}
+                    
+                    {% if states(cleaning_tool_alert) == 'on' %}
+                    ⚠️ **Warning:** Cleaning tool is not properly stored!
+                    {% endif %}
+                  notification_id: "cat_litter_status"
 
       # Periodic reminder checks with time window and interval control
       - conditions:
@@ -533,24 +567,6 @@ action:
                   message: >
                     {% set count = states(usage_counter) | int %}
                     {{ cleaning_reminder_message.replace('{count}', count | string) }}
-              # Create persistent notification
-              - if:
-                  - condition: template
-                    value_template: "{{ enable_persistent }}"
-                then:
-                  - service: persistent_notification.create
-                    data:
-                      title: "{{ persistent_title }}"
-                      message: >-
-                        🚨 **Cat litter box needs cleaning!**
-                        
-                        📊 **Statistics:**
-                        • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
-                        • Total cleanings: {{ states(clean_counter) | int }}
-                        • Total usage: {{ states(total_counter) | int }}
-                        
-                        🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Never' }}
-                      notification_id: "cat_litter_status"
           
           # Check if cleaning tool is already open
           - if:
@@ -564,16 +580,20 @@ action:
                 data:
                   message: "{{ tool_alert_message }}"
           
-          # Create initial persistent notification if not already created
+          # Create initial persistent notification
           - if:
               - condition: template
-                value_template: "{{ enable_persistent and states(needs_cleaning_helper) == 'off' }}"
+                value_template: "{{ enable_persistent }}"
             then:
               - service: persistent_notification.create
                 data:
                   title: "{{ persistent_title }}"
                   message: >-
+                    {% if states(needs_cleaning_helper) == 'on' %}
+                    🚨 **Cat litter box needs cleaning!**
+                    {% else %}
                     ✅ **Cat litter box status OK**
+                    {% endif %}
                     
                     📊 **Statistics:**
                     • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
@@ -581,6 +601,10 @@ action:
                     • Total usage: {{ states(total_counter) | int }}
                     
                     🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Never' }}
+                    
+                    {% if states(cleaning_tool_alert) == 'on' %}
+                    ⚠️ **Warning:** Cleaning tool is not properly stored!
+                    {% endif %}
                   notification_id: "cat_litter_status"
 
   # Auto-dismiss persistent notification if configured
