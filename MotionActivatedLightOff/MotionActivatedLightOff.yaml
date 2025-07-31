@@ -33,109 +33,45 @@ blueprint:
       description: "Enable debug logging for troubleshooting"
       default: true
       selector:
-        boolean:
+        boolean: {}
 
 trigger:
-  - platform: state
-    entity_id: !input motion_sensor
-    to: "on"
   - platform: state
     entity_id: !input motion_sensor
     to: "off"
 
 condition:
-  - condition: or
-    conditions:
-      # When motion is detected, cancel any pending turn off
-      - condition: and
-        conditions:
-          - condition: trigger
-            id: !input motion_sensor
-            platform: state
-            to: "on"
-          - condition: state
-            entity_id: !input light_entity
-            state: "on"
-      # When motion stops, start the turn off timer
-      - condition: and
-        conditions:
-          - condition: trigger
-            id: !input motion_sensor
-            platform: state
-            to: "off"
-          - condition: state
-            entity_id: !input light_entity
-            state: "on"
+  - condition: state
+    entity_id: !input light_entity
+    state: "on"
 
 action:
-  - choose:
-      # Motion detected - cancel turn off timer
-      - conditions:
-          - condition: trigger
-            id: !input motion_sensor
-            platform: state
-            to: "on"
-        sequence:
-          - service: automation.turn_off
-            target:
-              entity_id: "{{ automation.entity_id }}"
-          - delay:
-              seconds: 1
-          - service: automation.turn_on
-            target:
-              entity_id: "{{ automation.entity_id }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: input_boolean.motion_light_off_timer
-          - if:
-              - condition: state
-                entity_id: !input enable_logging
-                state: "on"
-            then:
-              - service: persistent_notification.create
-                data:
-                  title: "Motion Light Off - Timer Cancelled"
-                  message: "Motion detected, turn off timer cancelled for {{ states('!input light_entity') }}"
-      
-      # Motion stopped - start turn off timer
-      - conditions:
-          - condition: trigger
-            id: !input motion_sensor
-            platform: state
-            to: "off"
-        sequence:
-          - service: input_boolean.turn_on
-            target:
-              entity_id: input_boolean.motion_light_off_timer
-          - if:
-              - condition: state
-                entity_id: !input enable_logging
-                state: "on"
-            then:
-              - service: persistent_notification.create
-                data:
-                  title: "Motion Light Off - Timer Started"
-                  message: "Motion stopped, turn off timer started for {{ states('!input light_entity') }} ({{ !input turn_off_delay }} minutes)"
-          - delay:
-              minutes: !input turn_off_delay
-          - condition: state
-            entity_id: input_boolean.motion_light_off_timer
-            state: "on"
-          - condition: state
-            entity_id: !input motion_sensor
-            state: "off"
-          - service: light.turn_off
-            target:
-              entity_id: !input light_entity
-          - service: input_boolean.turn_off
-            target:
-              entity_id: input_boolean.motion_light_off_timer
-          - if:
-              - condition: state
-                entity_id: !input enable_logging
-                state: "on"
-            then:
-              - service: persistent_notification.create
-                data:
-                  title: "Motion Light Off - Light Turned Off"
-                  message: "Light {{ states('!input light_entity') }} turned off after {{ !input turn_off_delay }} minutes of no motion" 
+  - if:
+      - condition: state
+        entity_id: !input enable_logging
+        state: "on"
+    then:
+      - service: persistent_notification.create
+        data:
+          title: "Motion Light Off - Timer Started"
+          message: "Motion stopped, turn off timer started for {{ states('!input light_entity') }} ({{ !input turn_off_delay }} minutes)"
+  - delay:
+      minutes: !input turn_off_delay
+  - condition: state
+    entity_id: !input motion_sensor
+    state: "off"
+  - condition: state
+    entity_id: !input light_entity
+    state: "on"
+  - service: light.turn_off
+    target:
+      entity_id: !input light_entity
+  - if:
+      - condition: state
+        entity_id: !input enable_logging
+        state: "on"
+    then:
+      - service: persistent_notification.create
+        data:
+          title: "Motion Light Off - Light Turned Off"
+          message: "Light {{ states('!input light_entity') }} turned off after {{ !input turn_off_delay }} minutes of no motion" 

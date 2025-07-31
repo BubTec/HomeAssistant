@@ -15,13 +15,6 @@ A Home Assistant blueprint that automatically turns off lights after a specified
 
 ## Requirements
 
-### Required Helper Entities
-
-Before importing this blueprint, create this helper entity in Home Assistant:
-
-#### Input Boolean (Settings → Devices & Services → Helpers → Toggle)
-- **Timer Helper** (`input_boolean.motion_light_off_timer`): Tracks the turn-off timer state
-
 ### Required Sensors
 - **Motion Sensor**: Binary sensor that detects movement in the area
 - **Light Entity**: Light or light group to control
@@ -29,10 +22,9 @@ Before importing this blueprint, create this helper entity in Home Assistant:
 ## Installation
 
 1. **Import Blueprint**: Click the import button above
-2. **Create Helper Entity**: Set up the required timer helper (name suggested in blueprint)
-3. **Configure Sensors**: Ensure your motion sensor and light entity are working
-4. **Create Automation**: Use the blueprint to create a new automation
-5. **Test Functionality**: Verify the automation works as expected
+2. **Configure Sensors**: Ensure your motion sensor and light entity are working
+3. **Create Automation**: Use the blueprint to create a new automation
+4. **Test Functionality**: Verify the automation works as expected
 
 ## Configuration
 
@@ -44,19 +36,17 @@ Before importing this blueprint, create this helper entity in Home Assistant:
 
 ## How It Works
 
-1. **Motion Detected**: When motion is detected and the light is on:
-   - Cancels any pending turn-off timer
-   - Logs the cancellation (if logging enabled)
-
-2. **Motion Stops**: When motion stops and the light is on:
+1. **Motion Stops**: When motion stops and the light is on:
    - Starts the turn-off timer
    - Logs the timer start (if logging enabled)
 
-3. **Timer Expires**: After the specified delay:
+2. **Timer Expires**: After the specified delay:
    - Checks if motion is still not detected
+   - Checks if the light is still on
    - Turns off the light
-   - Resets the timer state
    - Logs the action (if logging enabled)
+
+**Note**: Each time motion stops, a new timer starts. If motion is detected again, the automation will trigger again when motion stops.
 
 ## Configuration Examples
 
@@ -96,16 +86,7 @@ use_blueprint:
     enable_logging: true
 ```
 
-## Helper Entity Setup
 
-Create the required timer helper in Home Assistant:
-
-```yaml
-input_boolean:
-  motion_light_off_timer:
-    name: "Motion Light Off Timer"
-    icon: mdi:timer-outline
-```
 
 ## Troubleshooting
 
@@ -114,12 +95,11 @@ input_boolean:
 1. **Light doesn't turn off**:
    - Check if the motion sensor is working correctly
    - Verify the light entity is accessible
-   - Ensure the timer helper exists
+   - Ensure the automation is enabled
 
-2. **Timer doesn't cancel when motion detected**:
-   - Check motion sensor state changes
-   - Verify the automation is enabled
-   - Check logs for any errors
+2. **Timer restarts when motion detected**:
+   - This is normal behavior - each time motion stops, a new timer starts
+   - The automation will trigger again when motion stops again
 
 3. **Logging not working**:
    - Ensure the enable_logging option is set to true
