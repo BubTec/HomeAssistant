@@ -39,6 +39,11 @@ Automatically turns off lights after a specified time when no motion is detected
 
 [📖 Documentation](./MotionActivatedLightOff/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/MotionActivatedLightOff/MotionActivatedLightOff.yaml)
 
+### 🔗 Light/Switch Synchronization
+Synchronizes multiple lights or switches with a master device. When the master is controlled, all slave devices automatically follow the same state, brightness, and color settings.
+
+[📖 Documentation](./LightSwitchSync/) | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//raw.githubusercontent.com/n3roGit/HomeAssistant/main/LightSwitchSync/LightSwitchSync.yaml)
+
 ---
 
 ## Features Overview
@@ -52,6 +57,7 @@ Automatically turns off lights after a specified time when no motion is detected
 | **Alexa Echo Volume Control** | Echo-specific volume control, ignore patterns, special device handling | Night mode automation, Echo device management |
 | **Doorbell Camera Notification** | Photo snapshots, actionable notifications, door opener, dashboard integration | Doorbell monitoring, remote access control |
 | **Motion-Activated Light Off** | Automatic light control, motion detection, timer cancellation, energy saving | Kitchen, bathroom, hallway, workshop automation |
+| **Light/Switch Synchronization** | Master-slave control, brightness/color sync, mixed device types | Room lighting, kitchen setup, bedroom ambiance |
 
 ## 🚀 Development Environment
 

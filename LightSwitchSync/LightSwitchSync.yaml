@@ -1,0 +1,90 @@
+blueprint:
+  name: "Light/Switch Synchronization"
+  description: "Synchronizes multiple lights or switches with a master device. When the master is controlled, all slave devices follow the same state."
+  domain: automation
+  input:
+    master_device:
+      name: "Master Device"
+      description: "The main light or switch that controls all others"
+      selector:
+        entity:
+          domain:
+            - light
+            - switch
+    
+    slave_devices:
+      name: "Slave Devices"
+      description: "List of lights or switches that should follow the master device"
+      selector:
+        target:
+          entity:
+            domain:
+              - light
+              - switch
+    
+    sync_brightness:
+      name: "Sync Brightness (Lights Only)"
+      description: "Also synchronize brightness levels for lights (if supported)"
+      default: false
+      selector:
+        boolean: {}
+    
+    sync_color:
+      name: "Sync Color (Lights Only)"
+      description: "Also synchronize color for lights (if supported)"
+      default: false
+      selector:
+        boolean: {}
+
+trigger:
+  - platform: state
+    entity_id: !input master_device
+
+condition:
+  - condition: not
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.entity_id in !input slave_devices }}"
+
+action:
+  - choose:
+      # Master turned on
+      - conditions:
+          - condition: state
+            entity_id: !input master_device
+            state: "on"
+        sequence:
+          - service: >
+              {% if is_state('!input master_device', 'on') and 'light' in states('!input master_device') %}
+                light.turn_on
+              {% else %}
+                switch.turn_on
+              {% endif %}
+            target: !input slave_devices
+            data: >
+              {% if !input sync_brightness and is_state('!input master_device', 'on') and 'light' in states('!input master_device') %}
+                {% set brightness = state_attr('!input master_device', 'brightness') %}
+                {% if brightness %}
+                  brightness_pct: {{ (brightness / 255 * 100) | round(0) }}
+                {% endif %}
+              {% endif %}
+              {% if !input sync_color and is_state('!input master_device', 'on') and 'light' in states('!input master_device') %}
+                {% set rgb_color = state_attr('!input master_device', 'rgb_color') %}
+                {% if rgb_color %}
+                  rgb_color: {{ rgb_color }}
+                {% endif %}
+              {% endif %}
+      
+      # Master turned off
+      - conditions:
+          - condition: state
+            entity_id: !input master_device
+            state: "off"
+        sequence:
+          - service: >
+              {% if 'light' in states('!input master_device') %}
+                light.turn_off
+              {% else %}
+                switch.turn_off
+              {% endif %}
+            target: !input slave_devices 
