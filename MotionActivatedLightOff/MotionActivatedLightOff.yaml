@@ -2,7 +2,6 @@ blueprint:
   name: "Motion-Activated Light Off"
   description: "Automatically turns off lights after a specified time when no motion is detected"
   domain: automation
-  source_url: "https://github.com/n3roGit/HomeAssistant"
   input:
     motion_sensor:
       name: "Motion Sensor"
