@@ -47,9 +47,8 @@ condition:
 
 action:
   - if:
-      - condition: state
-        entity_id: !input enable_logging
-        state: "on"
+      - condition: template
+        value_template: "{{ !input enable_logging }}"
     then:
       - service: persistent_notification.create
         data:
@@ -67,9 +66,8 @@ action:
     target:
       entity_id: !input light_entity
   - if:
-      - condition: state
-        entity_id: !input enable_logging
-        state: "on"
+      - condition: template
+        value_template: "{{ !input enable_logging }}"
     then:
       - service: persistent_notification.create
         data:
