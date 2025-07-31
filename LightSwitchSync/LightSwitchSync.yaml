@@ -21,20 +21,6 @@ blueprint:
             domain:
               - light
               - switch
-    
-    sync_brightness:
-      name: "Sync Brightness (Lights Only)"
-      description: "Also synchronize brightness levels for lights (if supported)"
-      default: false
-      selector:
-        boolean: {}
-    
-    sync_color:
-      name: "Sync Color (Lights Only)"
-      description: "Also synchronize color for lights (if supported)"
-      default: false
-      selector:
-        boolean: {}
 
 trigger:
   - platform: state
@@ -56,17 +42,6 @@ action:
         sequence:
           - service: light.turn_on
             target: !input slave_devices
-            data:
-              brightness_pct: >
-                {% if !input sync_brightness and is_state('!input master_device', 'on') %}
-                  {% set brightness = state_attr('!input master_device', 'brightness') %}
-                  {% if brightness %}{{ (brightness / 255 * 100) | round(0) }}{% endif %}
-                {% endif %}
-              rgb_color: >
-                {% if !input sync_color and is_state('!input master_device', 'on') %}
-                  {% set rgb_color = state_attr('!input master_device', 'rgb_color') %}
-                  {% if rgb_color %}{{ rgb_color }}{% endif %}
-                {% endif %}
       
       # Master turned off
       - conditions:
