@@ -19,12 +19,14 @@ A comprehensive Home Assistant blueprint for monitoring cat litter box usage, pr
 - **Custom Messages**: Personalize all 6 notification types
 - **Multiple Services**: Works with any Home Assistant notification service
 - **Placeholder Support**: Use `{count}` in cleaning reminders
+- **Persistent Notifications**: Show status in Home Assistant sidebar for all users
 
 ### 📊 Advanced Monitoring
 - **Inactivity Detection**: Alerts if no activity for 48+ hours
 - **Initial State Check**: Restores warnings after Home Assistant restart
 - **Parallel Processing**: Handles multiple events simultaneously
 - **Total Statistics**: Tracks lifetime usage and cleaning counts
+- **Real-time Status**: Persistent notification shows current state and statistics
 
 ## Requirements
 
@@ -65,12 +67,17 @@ Before importing this blueprint, create these helper entities in Home Assistant:
 - **Visit Duration**: Wait time after cat leaves before counting (default: 120 seconds)  
 - **Cleaning Completion Time**: Time tool must be open to register cleaning (default: 45 seconds)
 
-### Notification Control (NEW!)
+### Notification Control
 - **Notification Start Time**: Begin daily notification window (default: 08:00)
 - **Notification End Time**: End daily notification window (default: 22:00)
 - **Reminder Interval**: Hours between reminders within window (default: 4 hours)
 
-### Custom Messages (NEW!)
+### Persistent Notifications (NEW!)
+- **Enable Persistent Notification**: Show status in Home Assistant sidebar (default: true)
+- **Persistent Notification Title**: Title for the sidebar notification (default: "🐱 Cat Litter Box Status")
+- **Auto-dismiss Time**: Automatically dismiss notification after specified time (0 = manual only)
+
+### Custom Messages
 Personalize all 6 notification types:
 
 1. **Cleaning Reminder**: Use `{count}` for usage count
@@ -88,7 +95,7 @@ Personalize all 6 notification types:
 5. **Cleaning Completed**: When cleaning finishes
    - Default: *"Cat litter cleaning completed and counters reset."*
 
-6. **Tool Stored**: When cleaning tool is put away
+6. **Tool Stored**: When cleaning tool is put away (only shown if tool was left open)
    - Default: *"Cleaning tool properly stored."*
 
 ### Example Configuration
@@ -106,6 +113,11 @@ cleaning_completion_time: 45
 notification_start_time: "08:00:00"
 notification_end_time: "22:00:00"
 reminder_interval_hours: 4
+
+# Persistent Notifications
+enable_persistent_notification: true
+persistent_notification_title: "🐱 Cat Litter Box Status"
+persistent_notification_auto_dismiss: 0
 
 # Custom Messages
 cleaning_reminder_message: "Hey! 🐱 The litter box needs attention - used {count} times!"
@@ -126,11 +138,22 @@ tool_alert_message: "⚠️ Don't forget to put the cleaning tool away!"
 3. If tool remains out for full duration, cleaning is registered
 4. Counters are reset and cleaning is logged
 
-### Smart Reminder System (NEW!)
+### Smart Reminder System
 - System checks every 2 hours for notifications
 - Sends reminders only during your specified time window
 - Respects your chosen interval (e.g., every 4 hours = 8:00, 12:00, 16:00, 20:00)
 - Uses your custom messages with dynamic content
+
+### Persistent Notifications (NEW!)
+- Shows real-time status in Home Assistant sidebar
+- Displays current usage, total statistics, and last activity
+- Updates automatically when status changes
+- Can be auto-dismissed or manually dismissed
+- Visible to all Home Assistant users
+
+### Tool Monitoring Improvements (NEW!)
+- **Smart Tool Stored Messages**: Only sends "tool stored" notification if tool was actually left open for too long
+- **Proper Custom Message Usage**: All notifications now use your configured custom messages instead of hardcoded English text
 
 ### Example Notification Schedule
 **Settings**: Window 08:00-22:00, Interval 4 hours
@@ -159,11 +182,20 @@ tool_alert_message: "⚠️ Don't forget to put the cleaning tool away!"
 - Verify cleaning completion time setting
 - Ensure tool sensor registers 'on' when tool is taken
 
+**Tool stored message appears too often:**
+- This has been fixed! Now only shows when tool was actually left open
+- Check if cleaning tool alert helper is properly tracking tool state
+
+**Notifications in English instead of custom messages:**
+- This has been fixed! All notifications now use your configured custom messages
+- Verify your custom message settings in the automation configuration
+
 ### Debug Tips
 - Monitor the helper entities to see current states
 - Check automation traces in Home Assistant
 - Verify all sensors are reporting correct states
 - Test notification service manually
+- Check persistent notification in sidebar for real-time status
 
 ## Helper Entity Names
 
@@ -175,9 +207,18 @@ The blueprint suggests these entity names for consistency:
 - `input_boolean.catshit_toolcheck` (Tool Alert)
 - `input_boolean.catshit_tracker` (Cat Presence)
 
+## Recent Updates
+
+### Version 2.0 - Major Improvements
+- ✅ **Fixed Tool Stored Messages**: Now only shows when tool was actually left open
+- ✅ **Fixed Custom Messages**: All notifications now use your configured messages
+- ✅ **Added Persistent Notifications**: Real-time status in Home Assistant sidebar
+- ✅ **Enhanced Status Display**: Shows current usage, statistics, and timestamps
+- ✅ **Auto-dismiss Option**: Configurable automatic dismissal of persistent notifications
+
 ## Original Script
 
-This blueprint is converted from the original ioBroker script `KatzenKlo_Counter_V3.json`. The functionality has been significantly enhanced with Home Assistant's capabilities, adding time window control, custom messages, and improved configurability.
+This blueprint is converted from the original ioBroker script `KatzenKlo_Counter_V3.json`. The functionality has been significantly enhanced with Home Assistant's capabilities, adding time window control, custom messages, persistent notifications, and improved configurability.
 
 ## Support
 
