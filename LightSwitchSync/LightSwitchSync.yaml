@@ -54,26 +54,19 @@ action:
             entity_id: !input master_device
             state: "on"
         sequence:
-          - service: >
-              {% if is_state('!input master_device', 'on') and 'light' in states('!input master_device') %}
-                light.turn_on
-              {% else %}
-                switch.turn_on
-              {% endif %}
+          - service: light.turn_on
             target: !input slave_devices
-            data: >
-              {% if !input sync_brightness and is_state('!input master_device', 'on') and 'light' in states('!input master_device') %}
-                {% set brightness = state_attr('!input master_device', 'brightness') %}
-                {% if brightness %}
-                  brightness_pct: {{ (brightness / 255 * 100) | round(0) }}
+            data:
+              brightness_pct: >
+                {% if !input sync_brightness and is_state('!input master_device', 'on') %}
+                  {% set brightness = state_attr('!input master_device', 'brightness') %}
+                  {% if brightness %}{{ (brightness / 255 * 100) | round(0) }}{% endif %}
                 {% endif %}
-              {% endif %}
-              {% if !input sync_color and is_state('!input master_device', 'on') and 'light' in states('!input master_device') %}
-                {% set rgb_color = state_attr('!input master_device', 'rgb_color') %}
-                {% if rgb_color %}
-                  rgb_color: {{ rgb_color }}
+              rgb_color: >
+                {% if !input sync_color and is_state('!input master_device', 'on') %}
+                  {% set rgb_color = state_attr('!input master_device', 'rgb_color') %}
+                  {% if rgb_color %}{{ rgb_color }}{% endif %}
                 {% endif %}
-              {% endif %}
       
       # Master turned off
       - conditions:
@@ -81,10 +74,5 @@ action:
             entity_id: !input master_device
             state: "off"
         sequence:
-          - service: >
-              {% if 'light' in states('!input master_device') %}
-                light.turn_off
-              {% else %}
-                switch.turn_off
-              {% endif %}
+          - service: light.turn_off
             target: !input slave_devices 
