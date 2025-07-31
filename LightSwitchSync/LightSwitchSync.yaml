@@ -26,12 +26,6 @@ trigger:
   - platform: state
     entity_id: !input master_device
 
-condition:
-  - condition: not
-    conditions:
-      - condition: template
-        value_template: "{{ trigger.entity_id in !input slave_devices }}"
-
 action:
   - choose:
       # Master turned on
