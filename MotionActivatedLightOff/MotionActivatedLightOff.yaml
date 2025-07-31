@@ -33,7 +33,7 @@ blueprint:
       description: "Enable debug logging for troubleshooting"
       default: true
       selector:
-        boolean
+        boolean: {}
 
 trigger:
   - platform: state
