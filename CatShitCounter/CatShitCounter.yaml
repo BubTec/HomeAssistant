@@ -448,20 +448,20 @@ action:
                   title: "{{ persistent_title }}"
                   message: >-
                     {% if states(needs_cleaning_helper) == 'on' %}
-                    🚨 **Cat litter box needs cleaning!**
+                    🚨 **Katzenklo muss gereinigt werden!**
                     {% else %}
-                    ✅ **Cat litter box status OK**
+                    ✅ **Katzenklo Status OK**
                     {% endif %}
                     
-                    📊 **Statistics:**
-                    • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
-                    • Total cleanings: {{ states(clean_counter) | int }}
-                    • Total usage: {{ states(total_counter) | int }}
+                    📊 **Statistiken:**
+                    • Aktuelle Nutzung: {{ states(usage_counter) | int }} (Schwellwert: {{ warning_threshold }})
+                    • Gesamte Reinigungen: {{ states(clean_counter) | int }}
+                    • Gesamte Nutzung: {{ states(total_counter) | int }}
                     
-                    🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Never' }}
+                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Nie' }}
                     
                     {% if states(cleaning_tool_alert) == 'on' %}
-                    ⚠️ **Warning:** Cleaning tool is not properly stored!
+                    ⚠️ **Warnung:** Reinigungswerkzeug ist nicht ordnungsgemäß verstaut!
                     {% endif %}
                   notification_id: "cat_litter_status"
 
@@ -479,20 +479,20 @@ action:
                   title: "{{ persistent_title }}"
                   message: >-
                     {% if states(needs_cleaning_helper) == 'on' %}
-                    🚨 **Cat litter box needs cleaning!**
+                    🚨 **Katzenklo muss gereinigt werden!**
                     {% else %}
-                    ✅ **Cat litter box status OK**
+                    ✅ **Katzenklo Status OK**
                     {% endif %}
                     
-                    📊 **Statistics:**
-                    • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
-                    • Total cleanings: {{ states(clean_counter) | int }}
-                    • Total usage: {{ states(total_counter) | int }}
+                    📊 **Statistiken:**
+                    • Aktuelle Nutzung: {{ states(usage_counter) | int }} (Schwellwert: {{ warning_threshold }})
+                    • Gesamte Reinigungen: {{ states(clean_counter) | int }}
+                    • Gesamte Nutzung: {{ states(total_counter) | int }}
                     
-                    🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Never' }}
+                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Nie' }}
                     
                     {% if states(cleaning_tool_alert) == 'on' %}
-                    ⚠️ **Warning:** Cleaning tool is not properly stored!
+                    ⚠️ **Warnung:** Reinigungswerkzeug ist nicht ordnungsgemäß verstaut!
                     {% endif %}
                   notification_id: "cat_litter_status"
 
@@ -590,20 +590,20 @@ action:
                   title: "{{ persistent_title }}"
                   message: >-
                     {% if states(needs_cleaning_helper) == 'on' %}
-                    🚨 **Cat litter box needs cleaning!**
+                    🚨 **Katzenklo muss gereinigt werden!**
                     {% else %}
-                    ✅ **Cat litter box status OK**
+                    ✅ **Katzenklo Status OK**
                     {% endif %}
                     
-                    📊 **Statistics:**
-                    • Current usage: {{ states(usage_counter) | int }} (threshold: {{ warning_threshold }})
-                    • Total cleanings: {{ states(clean_counter) | int }}
-                    • Total usage: {{ states(total_counter) | int }}
+                    📊 **Statistiken:**
+                    • Aktuelle Nutzung: {{ states(usage_counter) | int }} (Schwellwert: {{ warning_threshold }})
+                    • Gesamte Reinigungen: {{ states(clean_counter) | int }}
+                    • Gesamte Nutzung: {{ states(total_counter) | int }}
                     
-                    🕐 Last usage: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Never' }}
+                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Nie' }}
                     
                     {% if states(cleaning_tool_alert) == 'on' %}
-                    ⚠️ **Warning:** Cleaning tool is not properly stored!
+                    ⚠️ **Warnung:** Reinigungswerkzeug ist nicht ordnungsgemäß verstaut!
                     {% endif %}
                   notification_id: "cat_litter_status"
 
