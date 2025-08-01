@@ -454,11 +454,11 @@ action:
                     {% endif %}
                     
                     📊 **Statistiken:**
-                    • Aktuelle Nutzung: {{ states(usage_counter) | int }} (Schwellwert: {{ warning_threshold }})
-                    • Gesamte Reinigungen: {{ states(clean_counter) | int }}
-                    • Gesamte Nutzung: {{ states(total_counter) | int }}
+                    • Aktuelle Nutzung: {{ (states(usage_counter) | default(0) | int) }} (Schwellwert: {{ warning_threshold }})
+                    • Gesamte Reinigungen: {{ (states(clean_counter) | default(0) | int) }}
+                    • Gesamte Nutzung: {{ (states(total_counter) | default(0) | int) }}
                     
-                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Nie' }}
+                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed and states(usage_counter) != 'unknown' else 'Nie' }}
                     
                     {% if states(cleaning_tool_alert) == 'on' %}
                     ⚠️ **Warnung:** Reinigungswerkzeug ist nicht ordnungsgemäß verstaut!
@@ -485,11 +485,11 @@ action:
                     {% endif %}
                     
                     📊 **Statistiken:**
-                    • Aktuelle Nutzung: {{ states(usage_counter) | int }} (Schwellwert: {{ warning_threshold }})
-                    • Gesamte Reinigungen: {{ states(clean_counter) | int }}
-                    • Gesamte Nutzung: {{ states(total_counter) | int }}
+                    • Aktuelle Nutzung: {{ (states(usage_counter) | default(0) | int) }} (Schwellwert: {{ warning_threshold }})
+                    • Gesamte Reinigungen: {{ (states(clean_counter) | default(0) | int) }}
+                    • Gesamte Nutzung: {{ (states(total_counter) | default(0) | int) }}
                     
-                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Nie' }}
+                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed and states(usage_counter) != 'unknown' else 'Nie' }}
                     
                     {% if states(cleaning_tool_alert) == 'on' %}
                     ⚠️ **Warnung:** Reinigungswerkzeug ist nicht ordnungsgemäß verstaut!
@@ -596,11 +596,11 @@ action:
                     {% endif %}
                     
                     📊 **Statistiken:**
-                    • Aktuelle Nutzung: {{ states(usage_counter) | int }} (Schwellwert: {{ warning_threshold }})
-                    • Gesamte Reinigungen: {{ states(clean_counter) | int }}
-                    • Gesamte Nutzung: {{ states(total_counter) | int }}
+                    • Aktuelle Nutzung: {{ (states(usage_counter) | default(0) | int) }} (Schwellwert: {{ warning_threshold }})
+                    • Gesamte Reinigungen: {{ (states(clean_counter) | default(0) | int) }}
+                    • Gesamte Nutzung: {{ (states(total_counter) | default(0) | int) }}
                     
-                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed else 'Nie' }}
+                    🕐 Letzte Nutzung: {{ states(usage_counter).last_changed | as_timestamp | timestamp_custom('%d.%m.%Y %H:%M', true) if states(usage_counter).last_changed and states(usage_counter) != 'unknown' else 'Nie' }}
                     
                     {% if states(cleaning_tool_alert) == 'on' %}
                     ⚠️ **Warnung:** Reinigungswerkzeug ist nicht ordnungsgemäß verstaut!
